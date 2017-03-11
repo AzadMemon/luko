@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import config from './../config'
 
 const router = new Router();
 
@@ -27,7 +28,17 @@ const router = new Router();
  */
 
 router.get('/', function (req, res) {
-  res.send("HI");
-});
+  res.send("HI")
+})
+router.get('/lukobot', function (req, res) {
+  if (req.query['hub.mode'] === 'subscribe' &&
+    req.query['hub.verify_token'] === config.fbVerifyToken) {
+    console.log("Validating webhook")
+    res.status(200).send(req.query['hub.challenge'])
+  } else {
+    console.error("Failed validation. Make sure the validation tokens match.")
+    res.sendStatus(403)
+  }
+})
 
 export default router
