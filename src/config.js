@@ -26,6 +26,7 @@ const config = {
     port: process.env.PORT || 9000,
     ip: process.env.IP || '0.0.0.0',
     fbVerifyToken: requireProcessEnv('FB_VERIFY_TOKEN'),
+    pageAccessToken: requireProcessEnv('PAGE_ACCESS_TOKEN'),
     mongo: {
       options: {
         db: {
