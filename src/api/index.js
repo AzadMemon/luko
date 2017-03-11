@@ -7,7 +7,7 @@ router.get('/', function (req, res) {
   res.send("HI")
 })
 
-router.get('/authenticate', function (req, res) {
+router.get('/webhook', function (req, res) {
   if (req.query['hub.mode'] === 'subscribe' &&
     req.query['hub.verify_token'] === config.fbVerifyToken) {
     console.log("Validating webhook")
