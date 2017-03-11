@@ -44,7 +44,7 @@ const config = {
   },
   development: {
     mongo: {
-      uri: 'mongodb://localhost/luko-dev',
+      uri: 'mongodb://heroku_8zll3gv5:cchqli8qkev1nvooc5fkmk2si@ds021172.mlab.com:21172/heroku_8zll3gv5',
       options: {
         debug: true
       }
