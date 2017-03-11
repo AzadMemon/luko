@@ -1,5 +1,6 @@
 import {Router} from 'express'
 import config from './../config'
+var request = require('request');
 
 const router = new Router();
 
@@ -74,7 +75,6 @@ function receivedMessage(event) {
       case 'generic':
         sendGenericMessage(senderID);
         break;
-
       default:
         sendTextMessage(senderID, messageText);
     }
@@ -119,7 +119,7 @@ function sendGenericMessage(recipientId, messageText) {
             }, {
               type: "postback",
               title: "Call Postback",
-              payload: "Payload for second bubble",
+              payload: "Payload for second bubble"
             }]
           }]
         }
