@@ -1,12 +1,22 @@
 import {Router} from 'express'
 import config from './../config'
+
 var request = require('request');
+var amazon = require('amazon-product-api');
 
 const router = new Router();
 
-router.get('/', function (req, res) {
-  res.send("HI")
-})
+
+var client_ca = amazon.createClient({
+  awsTag: config.awsTagCA,
+  awsId: config.awsAccessKeyId,
+  awsSecret: config.awsSecretAccessKey
+});
+var client_us = amazon.createClient({
+  awsTag: config.awsTagUS,
+  awsId: config.awsAccessKeyId,
+  awsSecret: config.awsSecretAccessKey
+});
 
 router.get('/webhook', function (req, res) {
   if (req.query['hub.mode'] === 'subscribe' &&
@@ -39,6 +49,8 @@ router.post('/webhook', function (req, res) {
         } else {
           console.log("Webhook received unknown event: ", event);
         }
+
+        // TODO: Track when a user has read the message and when the message has been delivered
       });
     });
 
@@ -58,29 +70,48 @@ function receivedMessage(event) {
   var timeOfMessage = event.timestamp;
   var message = event.message;
 
-  console.log("Received message for user %d and page %d at %d with message:",
-    senderID, recipientID, timeOfMessage);
-  console.log(JSON.stringify(message));
-
   var messageId = message.mid;
-
   var messageText = message.text;
   var messageAttachments = message.attachments;
 
   if (messageText) {
-
     // If we receive a text message, check to see if it matches a keyword
     // and send back the example. Otherwise, just echo the text we received.
     switch (messageText) {
-      case 'generic':
+      case 'Get Started':
+        sendTextMessage(
+          senderID,
+          "Hey! I’m Luko, a price tracking bot for Amazon products. Have a product you’re interested in but you aren’t willing to pay? No PROBLEM! Simply paste the product link here and we’ll message you if the price drops."
+        );
+        break;
+      case 'Manage My Products':
         sendGenericMessage(senderID);
         break;
+      case '':
+        break;
       default:
-        sendTextMessage(senderID, messageText);
+        sendTextMessage(senderID, "Sorry I didn't quite understand that! I only speak in Amazon Links. Can you try pasting that Amazon link again?");
     }
-  } else if (messageAttachments) {
-    sendTextMessage(senderID, "Message with attachment received");
+  } else {
+    sendTextMessage(senderID, "Sorry I didn't quite understand that! I only speak in Amazon Links. Can you try pasting that Amazon link again?");
   }
+}
+
+function receivedPostback(event) {
+  var senderID = event.sender.id;
+  var recipientID = event.recipient.id;
+  var timeOfPostback = event.timestamp;
+
+  // The 'payload' param is a developer-defined field which is set in a postback
+  // button for Structured Messages.
+  var payload = event.postback.payload;
+
+  console.log("Received postback for user %d and page %d with payload '%s' " +
+    "at %d", senderID, recipientID, payload, timeOfPostback);
+
+  // When a postback is called, we'll send a message back to the sender to
+  // let them know it was successful
+  sendTextMessage(senderID, "Postback called");
 }
 
 function sendGenericMessage(recipientId, messageText) {
@@ -163,23 +194,6 @@ function callSendAPI(messageData) {
       console.error(error);
     }
   });
-}
-
-function receivedPostback(event) {
-  var senderID = event.sender.id;
-  var recipientID = event.recipient.id;
-  var timeOfPostback = event.timestamp;
-
-  // The 'payload' param is a developer-defined field which is set in a postback
-  // button for Structured Messages.
-  var payload = event.postback.payload;
-
-  console.log("Received postback for user %d and page %d with payload '%s' " +
-    "at %d", senderID, recipientID, payload, timeOfPostback);
-
-  // When a postback is called, we'll send a message back to the sender to
-  // let them know it was successful
-  sendTextMessage(senderID, "Postback called");
 }
 
 export default router
