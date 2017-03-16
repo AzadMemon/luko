@@ -27,9 +27,9 @@ const config = {
     ip: process.env.IP || '0.0.0.0',
     fbVerifyToken: requireProcessEnv('FB_VERIFY_TOKEN'),
     pageAccessToken: requireProcessEnv('PAGE_ACCESS_TOKEN'),
-    awsIdUS: requireProcessEnv('AWS_ID_US'),
-    awsIdCAN: requireProcessEnv('AWS_ID_CAN'),
-    awsAccessKey: requireProcessEnv('AWS_ACCESS_KEY'),
+    awsTagUS: requireProcessEnv('AWS_ID_US'),
+    awsTagCA: requireProcessEnv('AWS_ID_CAN'),
+    awsAccessKeyId: requireProcessEnv('AWS_ACCESS_KEY_ID'),
     awsSecretAccessKey: requireProcessEnv('AWS_SECRET_ACCESS_KEY'),
     mongo: {
       options: {
