@@ -27,8 +27,8 @@ const config = {
     ip: process.env.IP || '0.0.0.0',
     fbVerifyToken: requireProcessEnv('FB_VERIFY_TOKEN'),
     pageAccessToken: requireProcessEnv('PAGE_ACCESS_TOKEN'),
-    awsTagUS: requireProcessEnv('AWS_ID_US'),
-    awsTagCA: requireProcessEnv('AWS_ID_CAN'),
+    awsTagUS: requireProcessEnv('AWS_TAG_US'),
+    awsTagCA: requireProcessEnv('AWS_TAG_CA'),
     awsAccessKeyId: requireProcessEnv('AWS_ACCESS_KEY_ID'),
     awsSecretAccessKey: requireProcessEnv('AWS_SECRET_ACCESS_KEY'),
     mongo: {
@@ -43,7 +43,12 @@ const config = {
     mongo: {
       uri: 'mongodb://localhost/luko-test',
       options: {
-        debug: false
+        debug: false,
+        server: {
+          socketOptions: {
+            keepAlive: 120
+          }
+        }
       }
     }
   },
@@ -51,7 +56,15 @@ const config = {
     mongo: {
       uri: 'mongodb://heroku_8zll3gv5:cchqli8qkev1nvooc5fkmk2si@ds021172.mlab.com:21172/heroku_8zll3gv5',
       options: {
-        debug: true
+        keepAlive: 120,
+        debug: true,
+        server: {
+          auto_reconnect: true,
+          reconnectTries: Number.MAX_VALUE,
+          socketOptions: {
+            keepAlive: 120
+          }
+        }
       }
     }
   },
@@ -59,7 +72,14 @@ const config = {
     ip: process.env.IP || undefined,
     port: process.env.PORT || 8080,
     mongo: {
-      uri: process.env.MONGODB_URI || 'mongodb://localhost/luko'
+      uri: process.env.MONGODB_URI || 'mongodb://localhost/luko',
+      options: {
+        server: {
+          socketOptions: {
+            keepAlive: 120
+          }
+        }
+      }
     }
   }
 }
