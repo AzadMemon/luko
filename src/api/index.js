@@ -66,7 +66,7 @@ function receivedMessage(event) {
   var messageText = message.text;
 
   var links = getUrls(messageText);
-  if (links.size) {
+    if (links.size) {
     if (links.size > 1) {
       // TODO: Maybe iterate over links to service all links?
       return sendErrorTextMessage(senderID);
@@ -91,7 +91,7 @@ function receivedMessage(event) {
     return client.execute('ItemLookup', {
       IdType: 'ASIN',
       ItemId: amazonASIN,
-      ResponseGroup: 'Images, ItemAttributes, Offers'
+      ResponseGroup: 'Images, ItemAttributes, OfferFull'
     }).then(function(results) {
       if (_.get(results, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
         return sendIllFormedTextMessage(senderID);
@@ -105,10 +105,12 @@ function receivedMessage(event) {
 
   if (messageText) {
     switch (messageText) {
-      case 'Get Started':
-        return sendIntroMessage(senderID);
       case 'Manage My Products':
-        return sendCarouselMessage(senderID);
+        // TODO: send something
+      case 'Help':
+        // TODO: send something
+      case 'Add a Product':
+      // TODO: send something
       default:
         return sendErrorTextMessage(senderID);
     }
@@ -117,7 +119,7 @@ function receivedMessage(event) {
   sendErrorTextMessage(senderID);
 }
 
-function sendIntroMessage() {
+function sendIntroMessage(senderID) {
   sendTextMessage(
     senderID,
     "Hey! I’m Luko, a price tracking bot for Amazon products. " +
@@ -148,6 +150,13 @@ function sendErrorTextMessage(recipientID) {
   );
 }
 
+function kindleEbookNotSupportedMessage(recipientID) {
+  sendTextMessage(
+    recipientID,
+    "Sorry, but at this time, Amazon doesn't let me track Kindle books. Try pasting a different product link!"
+  );
+}
+
 function extractASIN(link) {
   var parsedUrl = url.parse(decodeURIComponent(link));
 
@@ -169,19 +178,30 @@ function receivedPostback(event) {
 
   var payload = event.postback.payload;
 
-  console.log("Received postback for user %d and page %d with payload '%s' " +
-    "at %d", senderID, recipientID, payload, timeOfPostback);
 
-  sendTextMessage(senderID, "Postback called");
+  if (payload == 'Get Started') {
+    return sendIntroMessage(senderID);
+  } else if (payload == 'Manage My Products') {
+    // TODO: Return something
+  } else if (payload == 'Add a Product') {
+    // TODO: Return something
+  } else if (payload == 'Help') {
+    // TODO: Return something
+  }
 }
 
 
 function sendConfirmTrackMessage(recipientID, results) {
+
   var detailPageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
   var lowestNewPrice = _.get(results, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice');
   var largeImage = _.get(results, 'result.ItemLookupResponse.Items.Item.LargeImage');
   var itemAttributes = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes');
 
+
+  if (_.get(itemAttributes, 'Format').toLowerCase() == 'kindle ebook') {
+    return kindleEbookNotSupportedMessage(recipientID);
+  }
 
   var messageData = {
     recipient: {
@@ -194,7 +214,7 @@ function sendConfirmTrackMessage(recipientID, results) {
           template_type: "generic",
           elements: [{
             title: itemAttributes.Title,
-            subtitle: itemAttributes.Publisher + ' - ' + lowestNewPrice.FormattedPrice + ' ' + lowestNewPrice.CurrencyCode,
+            subtitle: itemAttributes.Publisher + ' - ' + lowestNewPrice.FormattedPrice,
             item_url: detailPageUrl,
             image_url: largeImage.URL,
             buttons: [{
