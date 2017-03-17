@@ -1,21 +1,26 @@
 import {Router} from 'express'
 import config from './../config'
+import _ from 'lodash'
 
-var request = require('request');
-var amazon = require('amazon-product-api');
+const request = require('request');
+const {OperationHelper} = require('apac');
+const getUrls = require('get-urls');
+const url = require('url');
 
 const router = new Router();
-
-
-var client_ca = amazon.createClient({
-  awsTag: config.awsTagCA,
+const client_ca = new OperationHelper({
   awsId: config.awsAccessKeyId,
-  awsSecret: config.awsSecretAccessKey
+  awsSecret: config.awsSecretAccessKey,
+  assocId: config.awsTagCA,
+  maxRequestsPerSecond: 1,
+  locale: 'CA'
 });
-var client_us = amazon.createClient({
-  awsTag: config.awsTagUS,
+const client_us = new OperationHelper({
   awsId: config.awsAccessKeyId,
-  awsSecret: config.awsSecretAccessKey
+  awsSecret: config.awsSecretAccessKey,
+  assocId: config.awsTagUS,
+  maxRequestsPerSecond: 1,
+  locale: 'US'
 });
 
 router.get('/webhook', function (req, res) {
@@ -32,15 +37,11 @@ router.get('/webhook', function (req, res) {
 router.post('/webhook', function (req, res) {
   var data = req.body;
 
-  // Make sure this is a page subscription
   if (data.object === 'page') {
-
-    // Iterate over each entry - there may be multiple if batched
     data.entry.forEach(function (entry) {
       var pageID = entry.id;
       var timeOfEvent = entry.time;
 
-      // Iterate over each messaging event
       entry.messaging.forEach(function (event) {
         if (event.message) {
           receivedMessage(event);
@@ -54,11 +55,6 @@ router.post('/webhook', function (req, res) {
       });
     });
 
-    // Assume all went well.
-    //
-    // You must send back a 200, within 20 seconds, to let us know
-    // you've successfully received the callback. Otherwise, the request
-    // will time out and we will keep trying to resend.
     res.sendStatus(200);
   }
 })
@@ -66,58 +62,130 @@ router.post('/webhook', function (req, res) {
 
 function receivedMessage(event) {
   var senderID = event.sender.id;
-  var recipientID = event.recipient.id;
-  var timeOfMessage = event.timestamp;
   var message = event.message;
-
-  var messageId = message.mid;
   var messageText = message.text;
-  var messageAttachments = message.attachments;
+
+  var links = getUrls(messageText);
+  if (links.size) {
+    if (links.size > 1) {
+      // TODO: Maybe iterate over links to service all links?
+      return sendErrorTextMessage(senderID);
+    }
+
+    var amazonLink = Array.from(links)[0];
+    var amazonASIN = extractASIN(amazonLink);
+
+    if (!amazonASIN) {
+      return sendErrorTextMessage(senderID);
+    }
+
+    var client;
+    if (amazonLink.includes('amazon.com')) {
+      client = client_us;
+    } else if (amazonLink.includes('amazon.ca')) {
+      client = client_ca;
+    } else {
+      return sendWrongCountryTextMessage(senderID);
+    }
+
+    return client.execute('ItemLookup', {
+      IdType: 'ASIN',
+      ItemId: amazonASIN,
+      ResponseGroup: 'Images, ItemAttributes, Offers'
+    }).then(function(results) {
+      if (_.get(results, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
+        return sendIllFormedTextMessage(senderID);
+      }
+
+      sendConfirmTrackMessage(senderID, results);
+    }).catch(function(error) {
+      sendErrorTextMessage(senderID);
+    });
+  }
 
   if (messageText) {
-    // If we receive a text message, check to see if it matches a keyword
-    // and send back the example. Otherwise, just echo the text we received.
     switch (messageText) {
       case 'Get Started':
-        sendTextMessage(
-          senderID,
-          "Hey! I’m Luko, a price tracking bot for Amazon products. Have a product you’re interested in but you aren’t willing to pay? No PROBLEM! Simply paste the product link here and we’ll message you if the price drops."
-        );
-        break;
+        return sendIntroMessage(senderID);
       case 'Manage My Products':
-        sendGenericMessage(senderID);
-        break;
-      case '':
-        break;
+        return sendCarouselMessage(senderID);
       default:
-        sendTextMessage(senderID, "Sorry I didn't quite understand that! I only speak in Amazon Links. Can you try pasting that Amazon link again?");
+        return sendErrorTextMessage(senderID);
     }
-  } else {
-    sendTextMessage(senderID, "Sorry I didn't quite understand that! I only speak in Amazon Links. Can you try pasting that Amazon link again?");
   }
+
+  sendErrorTextMessage(senderID);
 }
+
+function sendIntroMessage() {
+  sendTextMessage(
+    senderID,
+    "Hey! I’m Luko, a price tracking bot for Amazon products. " +
+    "Have a product you’re interested in but you aren’t willing to pay? " +
+    "No PROBLEM! Simply paste the product link here and I’ll message you if the price drops."
+  );
+}
+
+function sendWrongCountryTextMessage(recipientID) {
+  sendTextMessage(
+    recipientID,
+    "I’m sorry, but I currently only work with Amazon's Canada and U.S. stores. I’ve noted that you’re interested and " +
+    "I’ll be sure to notify you when I've learnt how to work with stores in that area!"
+  )
+}
+
+function sendIllFormedTextMessage(recipientID) {
+  sendTextMessage(
+    recipientID,
+    "I’m sorry, I couldn’t find that product, are you sure your link is correct?"
+  );
+}
+function sendErrorTextMessage(recipientID) {
+  sendTextMessage(
+    recipientID,
+    "Sorry I didn't quite understand that! I only speak in Amazon Links. " +
+    "Can you try pasting that Amazon link again?"
+  );
+}
+
+function extractASIN(link) {
+  var parsedUrl = url.parse(decodeURIComponent(link));
+
+  if (parsedUrl != null && parsedUrl.hostname != null && parsedUrl.hostname.includes("amazon")) {
+    var paths = parsedUrl.pathname.split('/');
+    var index = _.indexOf(paths, 'product') == -1 ? _.indexOf(paths, 'dp') : _.indexOf(paths, 'product');
+
+    return index != -1 ? paths[index + 1] : '';
+  }
+
+  return '';
+}
+
 
 function receivedPostback(event) {
   var senderID = event.sender.id;
   var recipientID = event.recipient.id;
   var timeOfPostback = event.timestamp;
 
-  // The 'payload' param is a developer-defined field which is set in a postback
-  // button for Structured Messages.
   var payload = event.postback.payload;
 
   console.log("Received postback for user %d and page %d with payload '%s' " +
     "at %d", senderID, recipientID, payload, timeOfPostback);
 
-  // When a postback is called, we'll send a message back to the sender to
-  // let them know it was successful
   sendTextMessage(senderID, "Postback called");
 }
 
-function sendGenericMessage(recipientId, messageText) {
+
+function sendConfirmTrackMessage(recipientID, results) {
+  var detailPageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
+  var lowestNewPrice = _.get(results, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice');
+  var largeImage = _.get(results, 'result.ItemLookupResponse.Items.Item.LargeImage');
+  var itemAttributes = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes');
+
+
   var messageData = {
     recipient: {
-      id: recipientId
+      id: recipientID
     },
     message: {
       attachment: {
@@ -125,32 +193,21 @@ function sendGenericMessage(recipientId, messageText) {
         payload: {
           template_type: "generic",
           elements: [{
-            title: "rift",
-            subtitle: "Next-generation virtual reality",
-            item_url: "https://www.oculus.com/en-us/rift/",
-            image_url: "http://messengerdemo.parseapp.com/img/rift.png",
+            title: itemAttributes.Title,
+            subtitle: itemAttributes.Publisher + ' - ' + lowestNewPrice.FormattedPrice + ' ' + lowestNewPrice.CurrencyCode,
+            item_url: detailPageUrl,
+            image_url: largeImage.URL,
             buttons: [{
               type: "web_url",
-              url: "https://www.oculus.com/en-us/rift/",
-              title: "Open Web URL"
+              url: detailPageUrl,
+              title: "View Product"
             }, {
               type: "postback",
-              title: "Call Postback",
-              payload: "Payload for first bubble",
-            }],
-          }, {
-            title: "touch",
-            subtitle: "Your Hands, Now in VR",
-            item_url: "https://www.oculus.com/en-us/touch/",
-            image_url: "http://messengerdemo.parseapp.com/img/touch.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/touch/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for second bubble"
+              title: "Track",
+              payload: JSON.stringify({
+                cta: 'track',
+                asin: _.get(results, 'result.ItemLookupResponse.Items.Item.ASIN')
+              })
             }]
           }]
         }
@@ -161,10 +218,20 @@ function sendGenericMessage(recipientId, messageText) {
   callSendAPI(messageData);
 }
 
-function sendTextMessage(recipientId, messageText) {
+function trackPackage(userID, asin) {
+  // var detailPageUrl = results.result.ItemLookupResponse.Items.Item.DetailPageURL;
+  // var lowestNewPrice = results.result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice;
+  // var lowestUsedPrice = results.result.ItemLookupResponse.Items.Item.OfferSummary.LowestUsedPrice;
+  // var largeImage = results.result.ItemLookupResponse.Items.Item.LargeImage;
+  // var mediumImage = results.result.ItemLookupResponse.Items.Item.MediumImage;
+  // var smallImage = results.result.ItemLookupResponse.Items.Item.SmallImage;
+  // var itemAttributes = results.result.ItemLookupResponse.Items.Item.ItemAttributes;
+}
+
+function sendTextMessage(recipientID, messageText) {
   var messageData = {
     recipient: {
-      id: recipientId
+      id: recipientID
     },
     message: {
       text: messageText
