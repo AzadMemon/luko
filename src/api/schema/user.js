@@ -3,8 +3,11 @@ var Schema = mongoose.Schema;
 
 var userSchema = new Schema({
   fbUserId:  String,
-  name: String,
-  country: String
+  firstName: String,
+  lastName: String,
+  timezone: String,
+  gender: String,
+  locale: String
 });
 
 var User = mongoose.model('User', userSchema);

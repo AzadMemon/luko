@@ -9,17 +9,13 @@ var productSchema = new Schema({
     formattedAmount: String,
     currencyCode: String
   },
-  startPrice: {
-    amount: Number,
-    formattedAmount: String,
-    currencyCode: String
-  },
   priceHistory: [{
     date: {type: Date, Default: Date.now},
     amount: Number,
     formattedAmount: String,
     currencyCode: String
   }],
+  store: String,
   imageUrl: String,
   title: String,
   seller: String
