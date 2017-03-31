@@ -31,6 +31,10 @@ router.get('/*', (req, res) => {
   return bot._verify(req, res)
 })
 
+router.post('/sendPriceDrop', (req, res) => {
+  sendPriceDropNotification(req.body.userId, req.body.productId, res);
+});
+
 router.post('/*', (req, res) => {
   bot._handleMessage(req.body)
   res.end(JSON.stringify({status: 'ok'}))
@@ -151,6 +155,49 @@ function kindleEbookNotSupportedMessage(recipientId) {
     recipientId,
     "Sorry, but at this time, Amazon doesn't let me track Kindle books. Try pasting a different product link!"
   );
+}
+
+function sendTextMessage(recipientId, messageText) {
+  bot.sendMessage(recipientId, {text: messageText});
+}
+
+function sendConfirmTrackMessage(recipientId, results) {
+  var detailPageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
+  var lowestNewPrice = _.get(results, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
+  var largeImageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.LargeImage.URL');
+  var mediumImageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.MediumImage.URL');
+  var smallImageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
+  var publisher = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
+  var title = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
+  var format = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Format');
+
+  if (format && format.toLowerCase() == 'kindle ebook') {
+    return kindleEbookNotSupportedMessage(recipientId);
+  }
+
+  bot.sendMessage(recipientId, {
+    attachment: {
+      type: "template",
+      payload: {
+        template_type: "generic",
+        elements: [{
+          title: title,
+          subtitle: publisher + ' - ' + lowestNewPrice,
+          item_url: detailPageUrl,
+          image_url: largeImageUrl || mediumImageUrl || smallImageUrl,
+          buttons: [{
+            type: "web_url",
+            url: detailPageUrl,
+            title: "View Product"
+          }, {
+            type: "postback",
+            title: "Track",
+            payload: "Track:::" + _.get(results, 'result.ItemLookupResponse.Items.Item.ASIN') + ":::" + detailPageUrl
+          }]
+        }]
+      }
+    }
+  });
 }
 
 function trackProduct(userId, asin, url) {
@@ -310,47 +357,70 @@ function createUser(userId) {
   }
 }
 
-function sendTextMessage(recipientId, messageText) {
-  bot.sendMessage(recipientId, {text: messageText});
-}
+function sendPriceDropNotification(userId, productId, res) {
+  async([
+    getProduct,
+    sendNotification
+  ]);
 
-function sendConfirmTrackMessage(recipientId, results) {
-  var detailPageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
-  var lowestNewPrice = _.get(results, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
-  var largeImageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.LargeImage.URL');
-  var mediumImageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.MediumImage.URL');
-  var smallImageUrl = _.get(results, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
-  var publisher = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
-  var title = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
-  var format = _.get(results, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Format');
+  function getProduct(waterfallNext) {
+    Product.findById(productId, function(error, result) {
+      if (error) {
+        return waterfallNext(error);
+      }
 
-  if (format && format.toLowerCase() == 'kindle ebook') {
-    return kindleEbookNotSupportedMessage(recipientId);
+      if (!result) {
+        return waterfallNext(new Error("Product not found when attempting to notify user of price drop."));
+      }
+
+      waterfallNext(null, result);
+    });
   }
 
-  bot.sendMessage(recipientId, {
-    attachment: {
-      type: "template",
-      payload: {
-        template_type: "generic",
-        elements: [{
-          title: title,
-          subtitle: publisher + ' - ' + lowestNewPrice,
-          item_url: detailPageUrl,
-          image_url: largeImageUrl || mediumImageUrl || smallImageUrl,
-          buttons: [{
-            type: "web_url",
-            url: detailPageUrl,
-            title: "View Product"
-          }, {
-            type: "postback",
-            title: "Track",
-            payload: "Track:::" + _.get(results, 'result.ItemLookupResponse.Items.Item.ASIN') + ":::" + detailPageUrl
+  function sendNotification(product, waterfallNext) {
+    sendTextMessage(userId, "Hey, the price for one of your products dropped!");
+    bot.sendMessage(userId, {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "generic",
+          elements: [{
+            title: product.title,
+            subtitle: product.seller + ' - ' + product.currentPrice.formattedAmount,
+            item_url: product.link,
+            image_url:  product.imageUrl,
+            buttons: [
+              {
+                type: "web_url",
+                url: product.link,
+                title: "Purchase Product"
+              },
+              {
+                type: "postback",
+                title: "Notify me when price drops below " + prodcut.currentPrice.formattedAmount,
+                payload: "UpdateThreshold:::" + product._id + ":::" + JSON.stringify(product.currentPrice)
+              },
+              {
+                type: "postback",
+                title: "Stop Tracking",
+                payload: "StopTracking:::" + product._id
+              }
+            ]
           }]
-        }]
+        }
       }
+    });
+
+    return waterfallNext(null);
+  }
+
+  function finalCallback(error) {
+    if (error) {
+      console.log(error);
     }
-  });
+
+    res.end(JSON.stringify({status: 'ok'}))
+  }
 }
 
 function getClientByUrl(url) {
