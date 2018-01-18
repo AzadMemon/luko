@@ -19,6 +19,7 @@ if (process.env.NODE_ENV !== 'production') {
   })
 }
 
+// TODO: Whowse aws access key and secret access key is that?
 const config = {
   all: {
     env: process.env.NODE_ENV || 'development',
@@ -30,8 +31,8 @@ const config = {
     appSecret: requireProcessEnv('FB_APP_SECRET'),
     awsTagUS: requireProcessEnv('AWS_TAG_US'),
     awsTagCA: requireProcessEnv('AWS_TAG_CA'),
-    awsAccessKeyId: requireProcessEnv('AWS_ACCESS_KEY_ID'),
-    awsSecretAccessKey: requireProcessEnv('AWS_SECRET_ACCESS_KEY'),
+    awsAccessKeyId: requireProcessEnv('AWS_ACCESS_KEY'),
+    awsSecretAccessKey: requireProcessEnv('AWS_SECRET_KEY'),
     mongo: {
       options: {
         db: {
@@ -55,17 +56,14 @@ const config = {
   },
   development: {
     mongo: {
-      uri: 'mongodb://heroku_8zll3gv5:cchqli8qkev1nvooc5fkmk2si@ds021172.mlab.com:21172/heroku_8zll3gv5',
+      // uri: 'mongodb://heroku_8zll3gv5:cchqli8qkev1nvooc5fkmk2si@ds021172.mlab.com:21172/heroku_8zll3gv5',
+      uri: 'mongodb://localhost/luko-dev',
       options: {
         keepAlive: 120,
-        debug: true,
-        server: {
-          auto_reconnect: true,
-          reconnectTries: Number.MAX_VALUE,
-          socketOptions: {
-            keepAlive: 120
-          }
-        }
+        loggerLevel: 'info',
+        autoReconnect: true,
+        reconnectTries: Number.MAX_VALUE,
+        useMongoClient: true
       }
     }
   },

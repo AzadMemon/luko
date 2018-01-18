@@ -1,7 +1,7 @@
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
+let mongoose = require('mongoose');
+let Schema = mongoose.Schema;
 
-var productSchema = new Schema({
+let productSchema = new Schema({
   link: String,
   asin: String,
   currentPrice: {
@@ -16,11 +16,15 @@ var productSchema = new Schema({
     currencyCode: String
   }],
   store: String,
-  imageUrl: String,
+  imageUrl: {
+    large: String,
+    medium: String,
+    small: String
+  },
   title: String,
-  seller: String
+  publisher: String
 });
 
-var Product = mongoose.model('Product', productSchema);
+let Product = mongoose.model('Product', productSchema);
 
 module.exports = Product;

@@ -57,7 +57,7 @@
     "get-urls": "^7.0.0",
     "lodash": "^4.13.1",
     "messenger-bot": "^2.4.0",
-    "mongoose": "^4.4.19",
+    "mongoose": "^4.13.7",
     "mongoose-create-unique": "^0.4.1",
     "mongoose-keywords": "^0.3.1",
     "morgan": "^1.7.0",

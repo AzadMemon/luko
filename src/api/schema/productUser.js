@@ -1,18 +1,19 @@
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
+let mongoose = require('mongoose');
+let Schema = mongoose.Schema;
 
-var productUserSchema = new Schema({
-  userId:  String,
+let productUserSchema = new Schema({
+  userId:  Schema.Types.ObjectId,
   productId: Schema.Types.ObjectId,
-  thresholdPrice: {
+  thresholdPrice: [{
     amount: Number,
     formattedAmount: String,
     currencyCode: String
-  },
+  }],
   isTracking: {type: Boolean, default: true},
-  lastNotified: Date
+  lastNotified: Date,
+  isBeingUpdated: {type: Boolean, default: false}
 });
 
-var ProductUser = mongoose.model('ProductUser', productUserSchema);
+let ProductUser = mongoose.model('ProductUser', productUserSchema);
 
 module.exports = ProductUser;
