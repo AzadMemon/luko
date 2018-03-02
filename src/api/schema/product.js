@@ -7,7 +7,8 @@ let productSchema = new Schema({
   currentPrice: {
     amount: Number,
     formattedAmount: String,
-    currencyCode: String
+    currencyCode: String,
+    date: {type: Date, Default: Date.now}
   },
   priceHistory: [{
     date: {type: Date, Default: Date.now},

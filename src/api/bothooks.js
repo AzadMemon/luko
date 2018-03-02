@@ -10,9 +10,8 @@ import bot from './../services/facebook/messengerbot';
 import textMessage from './textMessage';
 import amazon from './amazon';
 
-// TODO: Move bot.on hooks elsewhere, and call into this
 bot.on('error', (err) => {
-  console.log(err.message)
+  winston.error(err.message)
 })
 
 bot.on('message', function (payload, reply, actions) {
@@ -20,20 +19,21 @@ bot.on('message', function (payload, reply, actions) {
   let message = payload.message.text;
 
   if (getUrls(message).size > 0) {
-    return parseProduct(senderId, message);
+    return parseProductUrl(senderId, message);
+  } else if (message === 'Get Started') {
+    createUser(senderId);
+    textMessage.send(senderId, textMessage.introMessage);
   } else if (!isNaN(parseFloat(message))) {
     return updateProductUserThreshold(senderId, message);
   } else {
     return textMessage.send(senderId, textMessage.genericErrorMessage);
   }
-  // Note: Here in message, we assume the only text the user will ever send us will be links.
-  // This might have to change when we prompt the user to enter a price at which they want to be notified
-
 });
 
 bot.on('postback', (payload, reply, actions) => {
   let senderId = payload.sender.id;
-  let metadataPayload = payload.postback.payload;// TODO: Better name for this?
+  let metadataPayload = payload.postback.payload;// TODO:F
+  // Better name for this?
 
   if (metadataPayload.includes('Track:::')) {
     let info = metadataPayload.split(":::");
@@ -59,11 +59,11 @@ bot.on('postback', (payload, reply, actions) => {
     let offset = metadataPayload.substring(25, metadataPayload.length);
     displayTrackedProducts(senderId, offset);
   } else if (metadataPayload === 'Help') {
-    // TODO: Return something
+    textMessage.send(senderId, textMessage.introMessage);
   }
 });
 
-function parseProduct(userId, message) {
+function parseProductUrl(userId, message) {
   async.waterfall([
     resolveUrl,
     resolveAsin,
@@ -275,11 +275,11 @@ function trackProduct(userId, asin, url) {
       {
         productId: product._id,
         userId: user._id,
-        thresholdPrice: {
+        thresholdPrice: [{
           amount: product.currentPrice.amount,
           formattedAmount: product.currentPrice.formattedAmount,
           currencyCode: product.currentPrice.currencyCode
-        },
+        }],
         isTracking: true,
         lastNotified: Date.now()
       },
@@ -290,7 +290,7 @@ function trackProduct(userId, asin, url) {
 
   function finalCallback(error, result) {
     if (error) {
-      console.log(error);
+      winston.error(error);
       return textMessage.send(userId, "Ooops, something went wrong with my magical amazon communication skills. Try again in a bit!");
     }
 
@@ -363,8 +363,7 @@ function createUser(userId) {
 
   function finalCallback(error) {
     if (error) {
-      console.log(error);
-      // TODO: Here we might be able to send them an error message and use the api to reshow the button?
+      winston.error("Important: " + error);
     }
   }
 }
@@ -393,7 +392,7 @@ function displayTrackedProducts(userId, skip) {
   function findProductUser(user, waterfallNext) {
     ProductUser
       .find(
-        {userId: user._id},
+        {userId: user._id, isTracking: true},
         function(error, productUsers) {
           if (error) {
             return waterfallNext(error);
@@ -464,7 +463,7 @@ function displayTrackedProducts(userId, skip) {
 
   function finalCallback(error, carouselElements) {
     if (error) {
-      console.log(error);
+      winston.error(error);
       return;
     }
 
@@ -539,7 +538,7 @@ function stopTracking(userId, asin, url) {
 
   function finalCallback(error, result) {
     if (error) {
-      return console.log(error);
+      return winston.error(error);
     }
 
     textMessage.send(userId, "Okay, I stopped tracking that product!");
@@ -619,7 +618,7 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
 
   function finalCallback(error) {
     if (error) {
-      return console.log(error);
+      return winston.error(error);
     }
 
     textMessage.send(userId, "Okay, what price do you want to update this product to? Hint: enter only a number.");
@@ -671,7 +670,7 @@ function updateProductUserThreshold(userId, message) {
 
   function finalCallback(error) {
     if (error) {
-      return console.log(error);
+      return winston.error(error);
     }
 
     return textMessage.send(userId, "Great, I've updated the price threshold of that product for you");

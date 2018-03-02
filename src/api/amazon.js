@@ -44,9 +44,9 @@ function getClient(url) {
 
 function getStore(url) {
   if (url.includes('amazon.com')) {
-    return 'amazon.com'
+    return 'amazon.com';
   } else if (url.includes('amazon.ca')) {
-    return 'amazon.ca'
+    return 'amazon.ca';
   }
 }
 
@@ -55,7 +55,7 @@ function getProduct(asin, client) {
     IdType: 'ASIN',
     ItemId: asin,
     ResponseGroup: 'Images, ItemAttributes, OfferFull'
-  })
+  });
 }
 
 function extractAsin(url) {

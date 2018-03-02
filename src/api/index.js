@@ -5,14 +5,14 @@ import "./bothooks";
 
 const router = new Router();
 
-// Webhook for facebook
+// Webhook fo r facebook
 router.get('/*', (req, res) => {
   return bot._verify(req, res)
 })
 
 // For when we set up a timed API call
 router.post('/sendPriceDrop', (req, res) => {
-  cron.sendPriceDropNotification(req.body.userId, req.body.productId, res);
+  cron.periodicUpdate(req.body.userId, req.body.productId, res);
 });
 
 // Let the bot handle every message

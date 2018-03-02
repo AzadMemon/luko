@@ -24,7 +24,7 @@ const config = {
   all: {
     env: process.env.NODE_ENV || 'development',
     root: path.join(__dirname, '..'),
-    port: process.env.PORT || 9000,
+    port: process.env.PORT || 3000,
     ip: process.env.IP || '0.0.0.0',
     fbVerifyToken: requireProcessEnv('FB_VERIFY_TOKEN'),
     pageAccessToken: requireProcessEnv('FB_PAGE_ACCESS_TOKEN'),
@@ -69,7 +69,7 @@ const config = {
   },
   production: {
     ip: process.env.IP || undefined,
-    port: process.env.PORT || 8080,
+    port: process.env.PORT || 3000,
     mongo: {
       uri: process.env.MONGODB_URI || 'mongodb://localhost/luko',
       options: {

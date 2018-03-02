@@ -1,16 +1,23 @@
-import http from 'http'
+import https from 'https'
+import fs from 'fs'
 import { env, mongo, port, ip } from './config'
 import mongoose from './services/mongoose'
 import express from './services/express'
 import api from './api/index'
+let winston = require('winston');
+
+let https_options = {
+  key: fs.readFileSync('./privkey.pem'),
+  cert: fs.readFileSync('./fullchain.pem')
+};
 
 const app = express(api);
-const server = http.createServer(app);
+const server = https.createServer(https_options, app);
 
 mongoose.connect(mongo.uri, mongo.options);
 
 setImmediate(() => {
   server.listen(port, ip, () => {
-    console.log('Express server listening on http://%s:%d, in %s mode', ip, port, env)
+    winston.info('Express server listening on http://%s:%d, in %s mode', ip, port, env)
   });
 });

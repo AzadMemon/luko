@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "node .",
+    "debug": "node . --inspect",
     "test": "jest",
     "test:unit": "npm test \"src/**/!(index).test.js\"",
     "test:integration": "npm test \"src/**/index.test.js\"",
@@ -15,10 +16,6 @@
     "lint": "eslint src",
     "docs": "apidoc -i src -o docs && apidoc-markdown -p docs -o DOCS.md",
     "postdocs": "opn docs/index.html"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "setupTestFrameworkScriptFile": "<rootDir>/test/setup.js"
   },
   "devDependencies": {
     "apidoc": "^0.16.1",
@@ -50,6 +47,7 @@
     "bluebird": "^3.4.0",
     "body-parser": "^1.15.1",
     "bodymen": "^1.0.1",
+    "co": "^4.6.0",
     "compression": "^1.6.2",
     "cors": "^2.7.1",
     "express": "^4.13.4",
@@ -63,6 +61,7 @@
     "morgan": "^1.7.0",
     "querymen": "^2.0.0",
     "request": "^2.81.0",
-    "request-promise": "^4.1.1"
+    "request-promise": "^4.1.1",
+    "winston": "^2.4.0"
   }
 }
