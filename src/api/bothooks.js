@@ -308,7 +308,7 @@ function trackProduct(userId, asin, url) {
             buttons: [
               {
                 type: "postback",
-                title: "Update Price",
+                title: "Update Alert Price",
                 payload: "UpdatePrice:::" + asin + ":::" + detailPageUrl
               },
               {
@@ -429,7 +429,7 @@ function displayTrackedProducts(userId, skip) {
         buttons: [
           {
             type: "postback",
-            title: "Update Price",
+            title: "Update Alert Price",
             payload: "UpdatePrice:::" + product.asin + ":::" + product.link
           },
           {

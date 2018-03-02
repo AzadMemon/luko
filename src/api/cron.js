@@ -205,18 +205,13 @@ function notifyUser(productUser) {
               },
               {
                 type: "postback",
-                title: "Notify me when price drops below " + product.currentPrice.formattedAmount,
-                payload: "UpdatePriceGiven:::" + product.asin + ":::" + JSON.stringify(product.currentPrice)
+                title: "Update Alert Price",
+                payload: "UpdatePrice:::" + product.asin + ":::" + product.link
               },
               {
                 type: "postback",
                 title: "Stop Tracking",
                 payload: "StopTracking:::" + product.asin + ":::" + product.link
-              },
-              {
-                type: "postback",
-                title: "Pause Notifications",
-                payload: "PauseNotifications:::" + product.asin + ":::" + product.link
               }
             ]
           }]
