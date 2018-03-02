@@ -363,7 +363,7 @@ function createUser(userId) {
 
   function finalCallback(error) {
     if (error) {
-      return winston.error("Important: " + error);
+      return winston.error(error);
     }
   }
 }
