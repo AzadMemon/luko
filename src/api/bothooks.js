@@ -363,7 +363,7 @@ function createUser(userId) {
 
   function finalCallback(error) {
     if (error) {
-      winston.error("Important: " + error);
+      return winston.error("Important: " + error);
     }
   }
 }
@@ -463,8 +463,7 @@ function displayTrackedProducts(userId, skip) {
 
   function finalCallback(error, carouselElements) {
     if (error) {
-      winston.error(error);
-      return;
+      return winston.error(error);
     }
 
     bot.sendMessage(userId, {

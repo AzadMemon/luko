@@ -45,7 +45,7 @@ function periodicUpdate(res, req) {
   }
 
   function finalCallback() {
-    console.log("Finished cron job");
+    winston.log("Finished cron job");
   }
 
   function forEachProductUser(productId) {
@@ -145,7 +145,7 @@ function updatedProductPrice(product) {
 
   function finalCallback(error) {
     if (error) {
-      console.log(error);
+      return winston.error(error);
     }
   }
 }
@@ -229,7 +229,7 @@ function notifyUser(productUser) {
 
   function finalCallback(error) {
     if (error) {
-      return console.log(error);
+      return winston.error(error);
     }
   }
 }
