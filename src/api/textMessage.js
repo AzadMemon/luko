@@ -1,4 +1,3 @@
-// TODO: Think of reorganizing this. Static strings in their own class. bot.sendMessage doesn't need a wrapper class imo
 const bot = require('./../services/facebook/messengerbot');
 const winston = require('winston');
 

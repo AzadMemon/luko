@@ -19,7 +19,6 @@ if (process.env.NODE_ENV !== 'production') {
   })
 }
 
-// TODO: Whowse aws access key and secret access key is that?
 const config = {
   all: {
     env: process.env.NODE_ENV || 'development',

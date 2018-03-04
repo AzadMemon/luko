@@ -20,9 +20,6 @@ bot.on('message', function (payload, reply, actions) {
 
   if (getUrls(message).size > 0) {
     return parseProductUrl(senderId, message);
-  } else if (message === 'Get Started') {
-    createUser(senderId);
-    textMessage.send(senderId, textMessage.introMessage);
   } else if (!isNaN(parseFloat(message))) {
     return updateProductUserThreshold(senderId, message);
   } else {
@@ -32,8 +29,7 @@ bot.on('message', function (payload, reply, actions) {
 
 bot.on('postback', (payload, reply, actions) => {
   let senderId = payload.sender.id;
-  let metadataPayload = payload.postback.payload;// TODO:F
-  // Better name for this?
+  let metadataPayload = payload.postback.payload;// TODO:Find a better name for this
 
   if (metadataPayload.includes('Track:::')) {
     let info = metadataPayload.split(":::");
@@ -102,7 +98,6 @@ function parseProductUrl(userId, message) {
 
     amazon.getProduct(amazonAsin, client)
       .then(function (product) {
-        // TODO: the error format changed
         if (!!_.get(product, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
           return waterfallNext(textMessage.productNotFoundErrorMessage);
         }
@@ -423,7 +418,7 @@ function displayTrackedProducts(userId, skip) {
     let carouselElements = _.map(firstXProducts, function(product) {
       return {
         title: product.title,
-        subtitle: product.publisher + ' - ' + product.currentPrice.formattedAmount,
+        subtitle: product.publisher + ', Current Price: ' + product.currentPrice.formattedAmount,
         item_url: product.link,
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
@@ -464,6 +459,10 @@ function displayTrackedProducts(userId, skip) {
   function finalCallback(error, carouselElements) {
     if (error) {
       return winston.error(error);
+    }
+
+    if (carouselElements.length === 0) {
+      return textMessage.send(userId, "You have no products to track! To track a product, simply paste the product link here and I’ll message you if the price drops.")
     }
 
     bot.sendMessage(userId, {

@@ -6,14 +6,24 @@ import UpdatedProduct from './schema/updatedProduct';
 import bot from './../services/facebook/messengerbot';
 import textMessage from './textMessage';
 import amazon from "./amazon";
+let winston = require('winston');
+let Q = require('q');
+import _ from 'lodash';
 
-function periodicUpdate(res, req) {
-  let batchId = 1; // TODO: change this to timestamp
-  console.log("Started cron job");
+let WINSTON_CRON = "CRON_JOB: ";
+
+function periodicUpdate(req, res) {
+  let batchId = Date.now();
+  winston.info(WINSTON_CRON + "Started cron job");
+
+  if (req.body.key !== process.env.CRON_SECRET_KEY) {
+    return winson.error(WINSTON_CRON + "Key doesn't match");
+  }
 
   async.waterfall([
     forEachProduct,
-    forEachUpdatedProduct
+    forEachUpdatedProduct,
+    cleanUpUpdatedProductCollection,
   ], finalCallback);
 
   function forEachProduct(waterfallNext) {
@@ -22,12 +32,8 @@ function periodicUpdate(res, req) {
       .cursor();
 
     productCursor
-      .eachAsync(doc => {
-        updatedProductPrice(doc)
-      })
-      .then(() => {
-        waterfallNext();
-      });
+      .eachAsync(doc => updatedProductPrice(doc, batchId))
+      .then(() => waterfallNext());
   }
 
   function forEachUpdatedProduct(waterfallNext) {
@@ -36,37 +42,46 @@ function periodicUpdate(res, req) {
       .cursor();
 
     updatedProductCursor
-      .eachAsync(doc => {
-        forEachProductUser(doc._id);
-      })
-      .then(() => {
-        waterfallNext();
-      });
-  }
-
-  function finalCallback() {
-    winston.log("Finished cron job");
+      .eachAsync(doc => forEachProductUser(doc._id))
+      .then(() => waterfallNext());
   }
 
   function forEachProductUser(productId) {
-    // TODO: Return a promise that's resolved in the finalCallback
+    let deferred = Q.defer();
 
     const productUserCursor = ProductUser
       .find({productId: productId})
       .cursor();
 
     productUserCursor
-      .eachAsync(doc => {
-        notifyUser(doc);
-      })
-      .then(() => {
+      .eachAsync(doc => notifyUser(doc))
+      .then(() => deferred.resolve());
 
-      });
+    return deferred.promise;
+  }
+
+  function cleanUpUpdatedProductCollection(waterfallNext) {
+    UpdatedProduct
+      .deleteMany(
+        {batchId: batchId},
+        function (error, response) {
+          if (error) {
+            winston.error(error);
+          }
+
+          return waterfallNext();
+        }
+      );
+  }
+
+  function finalCallback() {
+    winston.info(WINSTON_CRON + "Finished cron job");
   }
 }
 
-function updatedProductPrice(product) {
-  // TODO: Return a promise that's resolved in the finalCallback
+function updatedProductPrice(product, batchId) {
+  let deferred = Q.defer();
+
   async.waterfall([
     getAmazonProductInfo,
     updateProductPriceInfo,
@@ -76,17 +91,18 @@ function updatedProductPrice(product) {
   function getAmazonProductInfo(waterfallNext) {
     let client = amazon.getClient(product.link);
 
-    amazon.getProduct(product.asin, client)
+    amazon
+      .getProduct(product.asin, client)
       .then(function (product) {
-        // TODO: the error format changed
         if (!!_.get(product, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
           return waterfallNext(textMessage.productNotFoundErrorMessage);
         }
 
         return waterfallNext(null, product);
-      }).catch(function () {
-      return waterfallNext(textMessage.productNotFoundErrorMessage);
-    });
+      })
+      .catch(function () {
+        return waterfallNext(textMessage.productNotFoundErrorMessage);
+      });
   }
 
   function updateProductPriceInfo(productResults, waterfallNext) {
@@ -95,7 +111,7 @@ function updatedProductPrice(product) {
     let formattedAmount = _.get(productResults, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
 
     Product
-      .update(
+      .findOneAndUpdate(
         {_id: product._id},
         {
           currentPrice: {
@@ -104,7 +120,7 @@ function updatedProductPrice(product) {
             currencyCode: currencyCode,
             date: Date.now()
           },
-          $push : {
+          $push: {
             priceHistory: {
               amount: product.currentPrice.amount,
               formattedAmount: product.currentPrice.formattedAmount,
@@ -126,32 +142,42 @@ function updatedProductPrice(product) {
   }
 
   function addToAlertList(product, oldAmount, waterfallNext) {
-    if (product.currentPrice.amount < oldAmount) {
-      UpdatedProduct
-        .upsert(
-          {productId: product._id},
-          {productId: product._id},
-          function (error) {
-            if (error) {
-              return waterfallNext(error);
-            }
-
-            return waterfallNext();
-          });
-    } else {
+    if (product.currentPrice.amount > oldAmount) {
       return waterfallNext();
     }
+
+    UpdatedProduct
+      .update(
+        {
+          productId: product._id
+        },
+        {
+          productId: product._id,
+          batchId: batchId
+        },
+        {upsert: true},
+        function (error) {
+          if (error) {
+            return waterfallNext(error);
+          }
+
+          return waterfallNext();
+        });
   }
 
   function finalCallback(error) {
     if (error) {
-      return winston.error(error);
+      winston.error(WINSTON_CRON + error);
     }
+
+    deferred.resolve();
   }
+
+  return deferred.promise;
 }
 
 function notifyUser(productUser) {
-  // TODO: Return a promise that's resolved in the finalCallback
+  let deferred = Q.defer();
 
   async.waterfall([
     getProduct,
@@ -175,7 +201,7 @@ function notifyUser(productUser) {
   function getUser(product, waterfallNext) {
     User
       .find(
-        { userId: productUser.userId},
+        {userId: productUser.userId},
         function (error, user) {
           if (error) {
             return waterfallNext(error);
@@ -224,9 +250,13 @@ function notifyUser(productUser) {
 
   function finalCallback(error) {
     if (error) {
-      return winston.error(error);
+      winston.error(WINSTON_CRON + error);
     }
+
+    deferred.resolve();
   }
+
+  return deferred.promise;
 }
 
 module.exports = {

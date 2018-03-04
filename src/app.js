@@ -6,6 +6,12 @@ import express from './services/express'
 import api from './api/index'
 let winston = require('winston');
 
+winston.configure({
+  transports: [
+    new (winston.transports.File)({ filename: 'luko.log' })
+  ]
+});
+
 let https_options = {
   key: fs.readFileSync('./privkey.pem'),
   cert: fs.readFileSync('./fullchain.pem')
