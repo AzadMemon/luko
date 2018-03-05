@@ -114,6 +114,7 @@ function updatedProductPrice(product, batchId) {
       .findOneAndUpdate(
         {_id: product._id},
         {
+          modifiedAt: Date.now(),
           currentPrice: {
             amount: amount,
             formattedAmount: formattedAmount,
@@ -153,7 +154,8 @@ function updatedProductPrice(product, batchId) {
         },
         {
           productId: product._id,
-          batchId: batchId
+          batchId: batchId,
+          modifiedAt: Date.now()
         },
         {upsert: true},
         function (error) {
@@ -224,7 +226,9 @@ function notifyUser(productUser) {
           template_type: "generic",
           elements: [{
             title: product.title,
-            subtitle: product.publisher + ' - ' + product.currentPrice.formattedAmount,
+            subtitle: product.publisher +
+            "\nCurrent Price: " + product.currentPrice.formattedAmount +
+            "\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
             item_url: product.link,
             image_url: product.imageUrl,
             buttons: [

@@ -2,6 +2,8 @@ let mongoose = require('mongoose');
 let Schema = mongoose.Schema;
 
 let productUserSchema = new Schema({
+  createdAt: {type: Date, Default: Date.now},
+  modifiedAt: Date,
   userId:  Schema.Types.ObjectId,
   productId: Schema.Types.ObjectId,
   thresholdPrice: [{

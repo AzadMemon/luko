@@ -7,7 +7,9 @@ let userSchema = new Schema({
   lastName: String,
   timezone: String,
   gender: String,
-  locale: String
+  locale: String,
+  createdAt: {type: Date, Default: Date.now},
+  modifiedAt: Date,
 });
 
 let User = mongoose.model('User', userSchema);

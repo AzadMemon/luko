@@ -53,11 +53,13 @@ bot.on('postback', (payload, reply, actions) => {
     textMessage.send(senderId, textMessage.introMessage);
   } else if (metadataPayload === 'PRODUCT_MANAGE_PAYLOAD') {
     displayTrackedProducts(senderId, 0);
-  } else if (metadataPayload.search('PRODUCT_MANAGE_PAYLOAD:::\d+')){
-    let offset = metadataPayload.substring(25, metadataPayload.length);
+  } else if (metadataPayload.search('PRODUCT_MANAGE_PAYLOAD:::\d+') !== -1){
+    let offset = parseInt(metadataPayload.substring(25, metadataPayload.length));
     displayTrackedProducts(senderId, offset);
   } else if (metadataPayload === 'Help') {
     textMessage.send(senderId, textMessage.introMessage);
+  } else if (metadataPayload === 'AddProduct') {
+    textMessage.send(senderId, textMessage.addAProduct);
   }
 });
 
@@ -81,6 +83,7 @@ function parseProductUrl(userId, message) {
 
     let amazonUrl = Array.from(urls)[0];
     if (!amazon.isSupportedCountry(amazonUrl)) {
+      winston.info("Country Interest: " + amazonUrl);
       return waterfallNext(textMessage.unsupportedCountryErrorMessage);
     }
 
@@ -214,6 +217,10 @@ function trackProduct(userId, asin, url) {
     title = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
     lowestNewPrice = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
 
+    if (formattedAmount === "Too low to display") {
+      return textMessage.send(userId, textMessage.unSupportedProductErrorMessage);
+    }
+
     Product.findOneAndUpdate(
       {
         store: store,
@@ -242,7 +249,8 @@ function trackProduct(userId, asin, url) {
           small: smallImageUrl
         },
         title: title,
-        publisher: publisher
+        publisher: publisher,
+        modifiedAt: Date.now()
       },
       {upsert: true, new: true},
       waterfallNext
@@ -278,17 +286,18 @@ function trackProduct(userId, asin, url) {
           currencyCode: product.currentPrice.currencyCode
         }],
         isTracking: true,
-        lastNotified: Date.now()
+        lastNotified: Date.now(),
+        modifiedAt: Date.now()
       },
       {upsert: true, new: true},
       waterfallNext
     )
   }
 
-  function finalCallback(error, result) {
+  function finalCallback(error, productUser) {
     if (error) {
       winston.error(error);
-      return textMessage.send(userId, "Ooops, something went wrong with my magical amazon communication skills. Try again in a bit!");
+      return textMessage.send(userId, textMessage.randomError);
     }
 
     textMessage.send(userId, "Great, I’ll let you know when the price drops!");
@@ -299,7 +308,9 @@ function trackProduct(userId, asin, url) {
           template_type: "generic",
           elements: [{
             title: title,
-            subtitle: publisher + ' - ' + lowestNewPrice,
+            subtitle: _.truncate(publisher, {length: 20}) +
+            "\nCurrent Price: " + lowestNewPrice +
+            "\nAlert Price: " + lowestNewPrice,
             item_url: detailPageUrl,
             image_url: largeImageUrl || mediumImageUrl || smallImageUrl,
             buttons: [
@@ -346,7 +357,8 @@ function createUser(userId) {
         lastName: profile.last_name,
         timezone: profile.timezone,
         gender: profile.gender,
-        locale: profile.locale
+        locale: profile.locale,
+        modifiedAt: Date.now()
       },
       {upsert: true, new: true},
       function (error, result) {
@@ -411,16 +423,19 @@ function displayTrackedProducts(userId, skip) {
           }
 
           // Note that because we can't include: {skip: skip, limit: 10}, as part of the query, we're doing the following.
-          return waterfallNext(null, products);
+          return waterfallNext(null, products, productUsers);
         });
   }
 
-  function formatResponse(products, waterfallNext) {
+  function formatResponse(products, productUsers, waterfallNext) {
     let firstXProducts = _.slice(products, skip, skip + 9);
-    let carouselElements = _.map(firstXProducts, function(product) {
+    let carouselElements = _.map(firstXProducts, function(product, index) {
+      let pU = productUsers[index + skip];
       return {
         title: product.title,
-        subtitle: product.publisher + ', Current Price: ' + product.currentPrice.formattedAmount,
+        subtitle: product.publisher
+        + "\nCurrent Price: " + product.currentPrice.formattedAmount
+        + "\nAlert Price: " + pU.thresholdPrice[pU.thresholdPrice.length - 1].formattedAmount,
         item_url: product.link,
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
@@ -464,7 +479,7 @@ function displayTrackedProducts(userId, skip) {
     }
 
     if (carouselElements.length === 0) {
-      return textMessage.send(userId, "You have no products to track! To track a product, simply paste the product link here and I’ll message you if the price drops.")
+      return textMessage.send(userId, "You're currently not tracking any products! To track a product, simply paste the product link here and I’ll message you when the price drops.")
     }
 
     bot.sendMessage(userId, {
@@ -525,7 +540,8 @@ function stopTracking(userId, asin, url) {
           userId: user._id
         },
         {
-          isTracking: false
+          isTracking: false,
+          modifiedAt: Date.now()
         },
         function(error, result) {
           if (error) {
@@ -572,7 +588,7 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
   function setAllFlaggedProductUsersToFalse(user, waterfallNext) {
     ProductUser
       .update(
-        { userId: user._id }, { isBeingUpdated: false }, { multi: true }, function (error, raw) {
+        { userId: user._id, isBeingUpdated: true }, { isBeingUpdated: false, modifiedAt: Date.now() }, { multi: true }, function (error, raw) {
         if (error) {
           return waterfallNext(error);
         }
@@ -605,7 +621,8 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
           userId: user._id
         },
         {
-          isBeingUpdated: true
+          isBeingUpdated: true,
+          modifiedAt: Date.now()
         },
         function (error) {
           if (error) {
@@ -628,6 +645,7 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
 function updateProductUserThreshold(userId, message) {
   async.waterfall([
     findUser,
+    ensureProductBeingUpdatedIsMostRecentlyModified,
     updatePriceThreshold
   ], finalCallback);
 
@@ -638,6 +656,28 @@ function updateProductUserThreshold(userId, message) {
         function (error, user) {
           if (error) {
             return waterfallNext(error);
+          }
+
+          return waterfallNext(null, user);
+        });
+  }
+
+  function ensureProductBeingUpdatedIsMostRecentlyModified(user, waterfallNext) {
+    ProductUser
+      .find(
+        {
+          userId: user._id
+        },
+        {
+
+        },
+        {
+          sort: {modifiedAt: -1}
+        },
+        function(error, results) {
+          if (!results.isBeingUpdated) {
+            textMessage.send(userId, "It seems like you might be trying to update the Alert Price. To update the alert price, click on Update Alert Price of any product you're tracking.");
+            return waterfallNext("Tried to update alert price when most recently modified ProductUser was not in 'isBeingUpdated' state");
           }
 
           return waterfallNext(null, user);
@@ -657,7 +697,8 @@ function updateProductUserThreshold(userId, message) {
             thresholdPrice: {
               amount: parseFloat(message)*100
             }
-          }
+          },
+          modifiedAt: Date.now()
         },
         function(error) {
           if (error) {
@@ -673,6 +714,6 @@ function updateProductUserThreshold(userId, message) {
       return winston.error(error);
     }
 
-    return textMessage.send(userId, "Great, I've updated the price threshold of that product for you");
+    return textMessage.send(userId, "Great, I've updated the alert price of that product for you");
   }
 }

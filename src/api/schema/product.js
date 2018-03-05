@@ -4,6 +4,8 @@ let Schema = mongoose.Schema;
 let productSchema = new Schema({
   link: String,
   asin: String,
+  createdAt: {type: Date, Default: Date.now},
+  modifiedAt: Date,
   currentPrice: {
     amount: Number,
     formattedAmount: String,
