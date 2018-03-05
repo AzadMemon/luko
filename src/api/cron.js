@@ -93,22 +93,22 @@ function updatedProductPrice(product, batchId) {
 
     amazon
       .getProduct(product.asin, client)
-      .then(function (product) {
-        if (!!_.get(product, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
+      .then(function (productResult) {
+        if (!!_.get(productResult, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
           return waterfallNext(textMessage.productNotFoundErrorMessage);
         }
 
-        return waterfallNext(null, product);
+        return waterfallNext(null, productResult);
       })
       .catch(function () {
         return waterfallNext(textMessage.productNotFoundErrorMessage);
       });
   }
 
-  function updateProductPriceInfo(productResults, waterfallNext) {
-    let currencyCode = _.get(productResults, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
-    let amount = _.get(productResults, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
-    let formattedAmount = _.get(productResults, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
+  function updateProductPriceInfo(productResult, waterfallNext) {
+    let currencyCode = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
+    let amount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
+    let formattedAmount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
 
     Product
       .findOneAndUpdate(
@@ -212,6 +212,10 @@ function notifyUser(productUser) {
   }
 
   function sendAlert(product, user, waterfallNext) {
+    if (productUser.thresholdPrice[productUser.thresholdPrice.length - 1].amount < product.currentPrice.amount) {
+      return waterfallNext();
+    }
+
     textMessage.send(user.fbUserId, "Hey, the price for one of your products dropped!");
     bot.sendMessage(user.fbUserId, {
       attachment: {
