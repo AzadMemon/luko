@@ -10,6 +10,8 @@ import bot from './../services/facebook/messengerbot';
 import textMessage from './textMessage';
 import amazon from './amazon';
 
+let winston = require('winston');
+
 bot.on('error', (err) => {
   winston.error(err.message)
 })
