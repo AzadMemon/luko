@@ -12,9 +12,9 @@ import amazon from './amazon';
 
 let winston = require('winston');
 
-bot.on('error', (err) => {
-  winston.error(err.message)
-})
+bot.on('error', function (err) {
+  winston.error(err.message);
+});
 
 bot.on('message', function (payload, reply, actions) {
   let senderId = payload.sender.id;
@@ -29,7 +29,7 @@ bot.on('message', function (payload, reply, actions) {
   }
 });
 
-bot.on('postback', (payload, reply, actions) => {
+bot.on('postback', function (payload, reply, actions) {
   let senderId = payload.sender.id;
   let metadataPayload = payload.postback.payload;// TODO:Find a better name for this
 
@@ -53,7 +53,7 @@ bot.on('postback', (payload, reply, actions) => {
     textMessage.send(senderId, textMessage.introMessage);
   } else if (metadataPayload === 'PRODUCT_MANAGE_PAYLOAD') {
     displayTrackedProducts(senderId, 0);
-  } else if (metadataPayload.search('PRODUCT_MANAGE_PAYLOAD:::\d+') !== -1){
+  } else if (metadataPayload.search(/PRODUCT_MANAGE_PAYLOAD:::\d+/g) !== -1){
     let offset = parseInt(metadataPayload.substring(25, metadataPayload.length));
     displayTrackedProducts(senderId, offset);
   } else if (metadataPayload === 'Help') {
@@ -155,7 +155,7 @@ function parseProductUrl(userId, message) {
           }]
         }
       }
-    });
+    }, "RESPONSE");
 
     return waterfallNext();
   }
@@ -328,7 +328,7 @@ function trackProduct(userId, asin, url) {
           }]
         }
       }
-    });
+    }, "RESPONSE");
   }
 }
 
@@ -490,7 +490,7 @@ function displayTrackedProducts(userId, skip) {
           elements: carouselElements
         }
       }
-    });
+    }, "RESPONSE");
   }
 }
 

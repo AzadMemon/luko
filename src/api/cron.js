@@ -110,6 +110,10 @@ function updatedProductPrice(product, batchId) {
     let amount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
     let formattedAmount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
 
+    if (formattedAmount === "Too low to display") {
+      return waterfallNext("Too low to display: " + product.asin);
+    }
+
     Product
       .findOneAndUpdate(
         {_id: product._id},
@@ -251,7 +255,7 @@ function notifyUser(productUser) {
           }]
         }
       }
-    });
+    }, "MESSAGE_TAG", "NON_PROMOTIONAL_SUBSCRIPTION");
 
     waterfallNext();
   }
