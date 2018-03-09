@@ -15,7 +15,7 @@ const addAProduct = "To add a product, simply paste the Amazon URL of the produc
 const randomError = "Ooops, something went wrong with my magical amazon communication skills. Try again in a bit!";
 
 function send(recipientId, text) {
-  bot.sendMessage(recipientId, { text: text }, null, null, function(error, resp) {
+  bot.sendMessage(recipientId, { text: text }, "RESPONSE", null, function(error, resp) {
     if (error) {
       winston.error(error);
     }

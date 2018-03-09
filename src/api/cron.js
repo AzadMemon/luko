@@ -42,11 +42,12 @@ function periodicUpdate(req, res) {
       .cursor();
 
     updatedProductCursor
-      .eachAsync(doc => forEachProductUser(doc._id))
+      .eachAsync(doc => forEachProductUser(doc.productId))
       .then(() => waterfallNext());
   }
 
   function forEachProductUser(productId) {
+    winston.info(WINSTON_CRON + "Iterating over each updated product's productUser");
     let deferred = Q.defer();
 
     const productUserCursor = ProductUser
@@ -76,10 +77,12 @@ function periodicUpdate(req, res) {
 
   function finalCallback() {
     winston.info(WINSTON_CRON + "Finished cron job");
+    res.send("Done.");
   }
 }
 
 function updatedProductPrice(product, batchId) {
+  winston.info(WINSTON_CRON + "Updating product price");
   let deferred = Q.defer();
 
   async.waterfall([
@@ -147,7 +150,7 @@ function updatedProductPrice(product, batchId) {
   }
 
   function addToAlertList(product, oldAmount, waterfallNext) {
-    if (product.currentPrice.amount > oldAmount) {
+    if (product.currentPrice.amount >= oldAmount) {
       return waterfallNext();
     }
 
@@ -193,7 +196,7 @@ function notifyUser(productUser) {
 
   function getProduct(waterfallNext) {
     Product
-      .find(
+      .findOne(
         {_id: productUser.productId},
         function (error, product) {
           if (error) {
@@ -206,8 +209,8 @@ function notifyUser(productUser) {
 
   function getUser(product, waterfallNext) {
     User
-      .find(
-        {userId: productUser.userId},
+      .findOne(
+        {_id: productUser.userId},
         function (error, user) {
           if (error) {
             return waterfallNext(error);
@@ -218,44 +221,52 @@ function notifyUser(productUser) {
   }
 
   function sendAlert(product, user, waterfallNext) {
-    if (productUser.thresholdPrice[productUser.thresholdPrice.length - 1].amount < product.currentPrice.amount) {
+    if (productUser.thresholdPrice[productUser.thresholdPrice.length - 1].amount <= product.currentPrice.amount) {
       return waterfallNext();
     }
 
-    textMessage.send(user.fbUserId, "Hey, the price for one of your products dropped!");
-    bot.sendMessage(user.fbUserId, {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "generic",
-          elements: [{
-            title: product.title,
-            subtitle: product.publisher +
-            "\nCurrent Price: " + product.currentPrice.formattedAmount +
-            "\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
-            item_url: product.link,
-            image_url: product.imageUrl,
-            buttons: [
-              {
-                type: "web_url",
-                url: product.link,
-                title: "Purchase Product"
-              },
-              {
-                type: "postback",
-                title: "Update Alert Price",
-                payload: "UpdatePrice:::" + product.asin + ":::" + product.link
-              },
-              {
-                type: "postback",
-                title: "Stop Tracking",
-                payload: "StopTracking:::" + product.asin + ":::" + product.link
-              }
-            ]
-          }]
+    bot.sendMessage(
+      user.fbUserId,
+      {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "generic",
+            elements: [{
+              title: "PRICE DROP ALERT - " + product.title,
+              subtitle: product.publisher +
+              "\nCurrent Price: " + product.currentPrice.formattedAmount +
+              "\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
+              item_url: product.link,
+              image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
+              buttons: [
+                {
+                  type: "web_url",
+                  url: product.link,
+                  title: "Purchase Product"
+                },
+                {
+                  type: "postback",
+                  title: "Update Alert Price",
+                  payload: "UpdatePrice:::" + product.asin + ":::" + product.link
+                },
+                {
+                  type: "postback",
+                  title: "Stop Tracking",
+                  payload: "StopTracking:::" + product.asin + ":::" + product.link
+                }
+              ]
+            }]
+          }
         }
-      }
-    }, "MESSAGE_TAG", "NON_PROMOTIONAL_SUBSCRIPTION");
+      },
+      "MESSAGE_TAG",
+      "NON_PROMOTIONAL_SUBSCRIPTION",
+      function(error, resp) {
+        if (error) {
+          winston.error(error);
+        }
+      });
 
     waterfallNext();
   }
