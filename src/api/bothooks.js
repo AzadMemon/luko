@@ -588,13 +588,16 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
   function setAllFlaggedProductUsersToFalse(user, waterfallNext) {
     ProductUser
       .update(
-        { userId: user._id, isBeingUpdated: true }, { isBeingUpdated: false, modifiedAt: Date.now() }, { multi: true }, function (error, raw) {
-        if (error) {
-          return waterfallNext(error);
-        }
+        { userId: user._id, isBeingUpdated: true },
+        { isBeingUpdated: false, modifiedAt: Date.now() },
+        { multi: true },
+        function (error, raw) {
+          if (error) {
+            return waterfallNext(error);
+          }
 
-        return waterfallNext(null, user);
-      });
+          return waterfallNext(null, user);
+        });
   }
 
   function getProduct(user, waterfallNext) {
@@ -672,19 +675,24 @@ function updateProductUserThreshold(userId, message) {
 
         },
         {
-          sort: {modifiedAt: -1}
+          sort: {modifiedAt: -1},
+          limit: 1
         },
-        function(error, results) {
-          if (!results.isBeingUpdated) {
+        function(error, result) {
+          if (error) {
+            return waterfallNext(error);
+          }
+
+          if (!result[0].isBeingUpdated) {
             textMessage.send(userId, "It seems like you might be trying to update the Alert Price. To update the alert price, click on Update Alert Price of any product you're tracking.");
             return waterfallNext("Tried to update alert price when most recently modified ProductUser was not in 'isBeingUpdated' state");
           }
 
-          return waterfallNext(null, user);
+          return waterfallNext(null, user, result[0]);
         });
   }
 
-  function updatePriceThreshold(user, waterfallNext) {
+  function updatePriceThreshold(user, productUser, waterfallNext) {
     ProductUser
       .findOneAndUpdate(
         {
@@ -695,7 +703,9 @@ function updateProductUserThreshold(userId, message) {
           isBeingUpdated: false,
           $push: {
             thresholdPrice: {
-              amount: parseFloat(message)*100
+              amount: parseFloat(message)*100,
+              formattedAmount: "$ " + String(parseFloat(message).toFixed(2)),
+              currencyCode: productUser.thresholdPrice[0].currencyCode
             }
           },
           modifiedAt: Date.now()
