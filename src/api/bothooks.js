@@ -24,6 +24,11 @@ bot.on('message', function (payload, reply, actions) {
     return parseProductUrl(senderId, message);
   } else if (!isNaN(parseFloat(message))) {
     return updateProductUserThreshold(senderId, message);
+  } else if (message.toLowerCase() === 'get started') {
+    createUser(senderId);
+    textMessage.send(senderId, textMessage.introMessage);
+  } else if (message.toLowerCase() === 'help') {
+    textMessage.send(senderId, textMessage.introMessage);
   } else {
     return textMessage.send(senderId, textMessage.genericErrorMessage);
   }
@@ -48,17 +53,17 @@ bot.on('postback', function (payload, reply, actions) {
     let asin = info[1];
     let url = info[2];
     tagProductUserForPriceUpdate(senderId, asin, url)
-  } else if (metadataPayload === 'Get Started') {
-    createUser(senderId);
-    textMessage.send(senderId, textMessage.introMessage);
   } else if (metadataPayload === 'PRODUCT_MANAGE_PAYLOAD') {
     displayTrackedProducts(senderId, 0);
   } else if (metadataPayload.search(/PRODUCT_MANAGE_PAYLOAD:::\d+/g) !== -1){
     let offset = parseInt(metadataPayload.substring(25, metadataPayload.length));
     displayTrackedProducts(senderId, offset);
-  } else if (metadataPayload === 'Help') {
+  } else if (metadataPayload.toLowerCase() === 'get started') {
+    createUser(senderId);
     textMessage.send(senderId, textMessage.introMessage);
-  } else if (metadataPayload === 'AddProduct') {
+  } else if (metadataPayload.toLowerCase() === 'help') {
+    textMessage.send(senderId, textMessage.introMessage);
+  } else if (metadataPayload.toLowerCase() === 'addproduct') {
     textMessage.send(senderId, textMessage.addAProduct);
   }
 });
