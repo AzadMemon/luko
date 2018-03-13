@@ -25,7 +25,6 @@ bot.on('message', function (payload, reply, actions) {
   } else if (!isNaN(parseFloat(message))) {
     return updateProductUserThreshold(senderId, message);
   } else if (message.toLowerCase() === 'get started') {
-    createUser(senderId);
     textMessage.send(senderId, textMessage.introMessage);
   } else if (message.toLowerCase() === 'help') {
     textMessage.send(senderId, textMessage.introMessage);
