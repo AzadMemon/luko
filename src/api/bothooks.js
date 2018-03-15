@@ -673,7 +673,8 @@ function updateProductUserThreshold(userId, message) {
     ProductUser
       .find(
         {
-          userId: user._id
+          userId: user._id,
+          isTracking: true
         },
         {
 
@@ -687,7 +688,7 @@ function updateProductUserThreshold(userId, message) {
             return waterfallNext(error);
           }
 
-          if (!result[0].isBeingUpdated) {
+          if (result.length < 1 || !result[0].isBeingUpdated) {
             textMessage.send(userId, "It seems like you might be trying to update the Alert Price. To update the alert price, click on Update Alert Price of any product you're tracking.");
             return waterfallNext("Tried to update alert price when most recently modified ProductUser was not in 'isBeingUpdated' state");
           }
