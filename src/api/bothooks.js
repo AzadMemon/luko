@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import async from 'async';
 import getUrls from 'get-urls';
+import amazonAsin from 'amazon-asin';
 
 import User from './schema/user';
 import Product from './schema/product';
@@ -37,12 +38,7 @@ bot.on('postback', function (payload, reply, actions) {
   let senderId = payload.sender.id;
   let metadataPayload = payload.postback.payload;// TODO:Find a better name for this
 
-  if (metadataPayload.includes('Track:::')) {
-    let info = metadataPayload.split(":::");
-    let asin = info[1];
-    let url = info[2];
-    trackProduct(senderId, asin, url);
-  } else if (metadataPayload.includes('StopTracking:::')) {
+  if (metadataPayload.includes('StopTracking:::')) {
     let info = metadataPayload.split(":::");
     let asin = info[1];
     let url = info[2];
@@ -68,12 +64,17 @@ bot.on('postback', function (payload, reply, actions) {
 });
 
 function parseProductUrl(userId, message) {
+  let asin;
+  let url;
+
   async.waterfall([
     resolveUrl,
     resolveAsin,
     resolveProduct,
     validateProduct,
-    sendConfirmCorrectProduct,
+    upsertProduct,
+    getUser,
+    addTrackingRelationship
   ], finalCallback);
 
   function resolveUrl(waterfallNext) {
@@ -82,6 +83,7 @@ function parseProductUrl(userId, message) {
     // Invalid url
     let isInvalidUrl = !urls || urls.size !== 1;
     if (isInvalidUrl) {
+      winston.error("Invalid URL: " + message);
       return waterfallNext(textMessage.genericErrorMessage);
     }
 
@@ -95,134 +97,64 @@ function parseProductUrl(userId, message) {
   }
 
   function resolveAsin(amazonUrl, waterfallNext) {
-    let amazonAsin = amazon.extractAsin(amazonUrl);
-    if (!amazonAsin) {
-      return waterfallNext(textMessage.productNotFoundErrorMessage);
-    }
-    return waterfallNext(null, amazonUrl, amazonAsin);
+    amazonAsin
+      .asyncParseAsin(amazonUrl)
+      .then(
+        function (result) {
+          url = result.url;
+          asin = result.ASIN;
+          return waterfallNext(null, result.url, result.ASIN);
+        },
+        function (error) {
+          winston.error("Error resolving asin: \n" + error);
+          return waterfallNext(textMessage.productNotFoundErrorMessage);
+        }
+      );
   }
 
   function resolveProduct(amazonUrl, amazonAsin, waterfallNext) {
     let client = amazon.getClient(amazonUrl)
 
     amazon.getProduct(amazonAsin, client)
-      .then(function (product) {
-        if (!!_.get(product, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
+      .then(
+        function (amazonResult) {
+          if (!!_.get(amazonResult, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
+            winston.error("Error getting product info from amazon: \n" + _.get(amazonResult, 'result.ItemLookupResponse.Items.Request.Errors.Error'));
+            return waterfallNext(textMessage.productNotFoundErrorMessage);
+          }
+
+          return waterfallNext(null, amazonResult);
+        },
+        function(error) {
+          winston.error("Unable to get product info from amazon: \n" + error);
           return waterfallNext(textMessage.productNotFoundErrorMessage);
         }
-
-        return waterfallNext(null, product);
-      }).catch(function () {
-        return waterfallNext(textMessage.productNotFoundErrorMessage);
-      });
+      );
   }
 
-  function validateProduct(productResults, waterfallNext) {
-    if (amazon.isUnSupportedProduct(productResults)) {
+  function validateProduct(amazonResult, waterfallNext) {
+    if (amazon.isUnSupportedProduct(amazonResult)) {
+      winston.error("Unsupported product: " + url);
       return waterfallNext(textMessage.unSupportedProductErrorMessage);
     }
 
-    return waterfallNext(null, productResults);
-  }
-
-  function sendConfirmCorrectProduct(productResults, waterfallNext) {
-    let detailPageUrl = _.get(productResults, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
-    let lowestNewPrice = _.get(productResults, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
-    let largeImageUrl = _.get(productResults, 'result.ItemLookupResponse.Items.Item.LargeImage.URL');
-    let mediumImageUrl = _.get(productResults, 'result.ItemLookupResponse.Items.Item.MediumImage.URL');
-    let smallImageUrl = _.get(productResults, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
-    let publisher = _.get(productResults, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
-    let title = _.get(productResults, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
-
-    bot.sendMessage(userId, {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "generic",
-          elements: [{
-            title: title,
-            subtitle: publisher + ' - ' + lowestNewPrice,
-            item_url: detailPageUrl,
-            image_url: largeImageUrl || mediumImageUrl || smallImageUrl,
-            buttons: [
-              {
-                type: "web_url",
-                url: detailPageUrl,
-                title: "View Product"
-              },
-              {
-                type: "postback",
-                title: "Track",
-                payload: "Track:::" + _.get(productResults, 'result.ItemLookupResponse.Items.Item.ASIN') + ":::" + detailPageUrl
-              }
-            ]
-          }]
-        }
-      }
-    }, "RESPONSE");
-
-    return waterfallNext();
-  }
-
-  function finalCallback(errorMsg) {
-    if (!!errorMsg) {
-      return textMessage.send(userId, errorMsg);
-    }
-  }
-}
-
-function trackProduct(userId, asin, url) {
-  let store;
-  let detailPageUrl;
-  let currencyCode;
-  let amount;
-  let formattedAmount;
-  let largeImageUrl;
-  let mediumImageUrl;
-  let smallImageUrl;
-  let publisher;
-  let title;
-  let lowestNewPrice;
-
-  async.waterfall([
-    resolveProduct,
-    upsertProduct,
-    getUser,
-    addTrackingRelationship
-  ], finalCallback);
-
-  function resolveProduct(waterfallNext) {
-    let client = amazon.getClient(url);
-
-    amazon.getProduct(asin, client)
-      .then(function (results) {
-        // TODO: What does an error response actually look like (According to Amazon Docs)
-        if (_.get(results, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
-          return waterfallNext(new Error('Amazon returned an error'));
-        }
-
-        waterfallNext(null, results);
-      })
-      .catch(function (error) {
-        waterfallNext(error);
-      });
+    return waterfallNext(null, amazonResult);
   }
 
   function upsertProduct(amazonResult, waterfallNext) {
-    store = amazon.getStore(url);
-    detailPageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
-    currencyCode = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
-    amount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
-    formattedAmount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
-    largeImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.LargeImage.URL');
-    mediumImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.MediumImage.URL');
-    smallImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
-    publisher = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
-    title = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
-    lowestNewPrice = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
+    let store = amazon.getStore(url);
+    let detailPageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
+    let currencyCode = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
+    let amount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
+    let formattedAmount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
+    let largeImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.LargeImage.URL');
+    let mediumImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.MediumImage.URL');
+    let smallImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
+    let publisher = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
+    let title = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
 
     if (formattedAmount === "Too low to display") {
-      return textMessage.send(userId, textMessage.unSupportedProductErrorMessage);
+      return waterfallNext(textMessage.unSupportedProductErrorMessage);
     }
 
     Product.findOneAndUpdate(
@@ -257,7 +189,14 @@ function trackProduct(userId, asin, url) {
         modifiedAt: Date.now()
       },
       {upsert: true, new: true},
-      waterfallNext
+      function(error, result) {
+        if (error) {
+          winston.error("Error while trying to upsert product during tracking.");
+          return waterfallNext(textMessage.randomError);
+        }
+
+        waterfallNext(null, result);
+      }
     );
   }
 
@@ -266,10 +205,13 @@ function trackProduct(userId, asin, url) {
       {fbUserId: userId},
       function (error, user) {
         if (error) {
-          return waterfallNext(error);
+          winston.error("Error while trying to find user.");
+          return waterfallNext(textMessage.randomError);
         } else if (!user) {
-          return waterfallNext(new Error("Couldn't find user in database"));
+          winston.error("Couldn't find user in database");
+          return waterfallNext(textMessage.randomError);
         }
+
 
         waterfallNext(null, user, product);
       });
@@ -294,42 +236,35 @@ function trackProduct(userId, asin, url) {
         modifiedAt: Date.now()
       },
       {upsert: true, new: true},
-      waterfallNext
+      function(error, result) {
+        if (error) {
+          winston.error("Error while trying to add tracking relationship.");
+          return waterfallNext(textMessage.randomError);
+        }
+
+        waterfallNext();
+      }
     )
   }
 
-  function finalCallback(error, productUser) {
-    if (error) {
-      winston.error(error);
-      return textMessage.send(userId, textMessage.randomError);
+  function finalCallback(errorText) {
+    if (errorText) {
+      return textMessage.send(userId, errorText);
     }
 
-    textMessage.send(userId, "Great, I’ll let you know when the price drops!");
     bot.sendMessage(userId, {
       attachment: {
         type: "template",
         payload: {
-          template_type: "generic",
-          elements: [{
-            title: title,
-            subtitle: _.truncate(publisher, {length: 20}) +
-            "\nCurrent Price: " + lowestNewPrice +
-            "\nAlert Price: " + lowestNewPrice,
-            item_url: detailPageUrl,
-            image_url: largeImageUrl || mediumImageUrl || smallImageUrl,
-            buttons: [
-              {
-                type: "postback",
-                title: "Update Alert Price",
-                payload: "UpdatePrice:::" + asin + ":::" + detailPageUrl
-              },
-              {
-                type: "postback",
-                title: "Stop Tracking",
-                payload: "StopTracking:::" + asin + ":::" + detailPageUrl
-              }
-            ]
-          }]
+          template_type: "button",
+          text: "Okay I'll let you know when the price drops. Click manage products to view or adjust your alerts.",
+          buttons: [
+            {
+              type: "postback",
+              title: "Manage Products",
+              payload: "PRODUCT_MANAGE_PAYLOAD"
+            }
+          ]
         }
       }
     }, "RESPONSE");
