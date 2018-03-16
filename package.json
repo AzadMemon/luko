@@ -38,6 +38,7 @@
     "supertest-as-promised": "^4.0.0"
   },
   "dependencies": {
+    "amazon-asin": "^0.9.3",
     "apac": "^3.0.2",
     "async": "^2.6.0",
     "babel-core": "^6.17.0",
