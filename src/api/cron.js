@@ -110,9 +110,9 @@ function updatedProductPrice(product, batchId) {
   }
 
   function updateProductPriceInfo(productResult, waterfallNext) {
-    let currencyCode = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
-    let amount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
-    let formattedAmount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
+    let currencyCode = _.get(productResult, 'result.ItemLookupResponse.Items.Item.Offers.Offer.OfferListing.Price.CurrencyCode');
+    let amount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.Offers.Offer.OfferListing.Price.Amount');
+    let formattedAmount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.Offers.Offer.OfferListing.Price.FormattedPrice');
 
     if (formattedAmount === "Too low to display") {
       return waterfallNext("Too low to display: " + product.asin);
