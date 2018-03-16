@@ -101,6 +101,10 @@ function parseProductUrl(userId, message) {
       .asyncParseAsin(amazonUrl)
       .then(
         function (result) {
+          if (!result.url || !result.ASIN) {
+            return waterfallNext(textMessage.productNotFoundErrorMessage);
+          }
+
           url = result.url;
           asin = result.ASIN;
           return waterfallNext(null, result.url, result.ASIN);
