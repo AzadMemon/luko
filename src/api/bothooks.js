@@ -143,16 +143,16 @@ function parseProductUrl(userId, message) {
 
   function upsertProduct(amazonResult, waterfallNext) {
     let store = amazon.getStore(url);
-    let detailPageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
-    let currencyCode = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.Offers.Offer.OfferListing.Price.CurrencyCode');
-    let amount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.Offers.Offer.OfferListing.Price.Amount');
-    let formattedAmount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.Offers.Offer.OfferListing.Price.FormattedPrice');
+    let offersUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.Offers.MoreOffersUrl');
+    let currencyCode = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
+    let amount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
+    let formattedAmount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
     let largeImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.LargeImage.URL');
     let mediumImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.MediumImage.URL');
     let smallImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
     let publisher = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
     let title = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
-
+    // Items.Item.Offers.Offer.OfferListing.Price.Amount/CurrencyCode/FormattedPrice
     if (formattedAmount === "Too low to display") {
       return waterfallNext(textMessage.unSupportedProductErrorMessage);
     }
@@ -163,7 +163,7 @@ function parseProductUrl(userId, message) {
         asin: asin
       },
       {
-        link: detailPageUrl,
+        link: offersUrl,
         asin: asin,
         currentPrice: {
           amount: amount,
