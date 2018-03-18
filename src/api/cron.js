@@ -114,7 +114,7 @@ function updatedProductPrice(product, batchId) {
     let amount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
     let formattedAmount = _.get(productResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
 
-    if (formattedAmount === "Too low to display") {
+    if (!formattedAmount || formattedAmount.toLowerCase() === "too low to display") {
       return waterfallNext("Too low to display: " + product.asin);
     }
 

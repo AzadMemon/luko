@@ -22,7 +22,7 @@ bot.on('message', function (payload, reply, actions) {
   let message = payload.message.text;
 
   if (getUrls(message).size > 0) {
-    return parseProductUrl(senderId, message);
+    return trackProduct(senderId, message);
   } else if (!isNaN(parseFloat(message))) {
     return updateProductUserThreshold(senderId, message);
   } else if (message.toLowerCase() === 'get started') {
@@ -63,7 +63,7 @@ bot.on('postback', function (payload, reply, actions) {
   }
 });
 
-function parseProductUrl(userId, message) {
+function trackProduct(userId, message) {
   let asin;
   let url;
 
@@ -157,7 +157,7 @@ function parseProductUrl(userId, message) {
     let publisher = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
     let title = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
     // Items.Item.Offers.Offer.OfferListing.Price.Amount/CurrencyCode/FormattedPrice
-    if (formattedAmount === "Too low to display") {
+    if (!formattedAmount || formattedAmount.toLowerCase() === "too low to display") {
       return waterfallNext(textMessage.unSupportedProductErrorMessage);
     }
 
@@ -189,7 +189,7 @@ function parseProductUrl(userId, message) {
           small: smallImageUrl
         },
         title: title,
-        publisher: publisher,
+        publisher: publisher || "",
         modifiedAt: Date.now()
       },
       {upsert: true, new: true},
@@ -383,6 +383,11 @@ function displayTrackedProducts(userId, skip) {
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
           {
+            type: "web_url",
+            title: "View Product",
+            url: product.link
+          },
+          {
             type: "postback",
             title: "Update Alert Price",
             payload: "UpdatePrice:::" + product.asin + ":::" + product.link
@@ -422,7 +427,7 @@ function displayTrackedProducts(userId, skip) {
     }
 
     if (carouselElements.length === 0) {
-      return textMessage.send(userId, "You're currently not tracking any products! To track a product, simply paste the product link here and I’ll message you when the price drops.")
+      return textMessage.send(userId, "You're currently not tracking any products! To track a product, simply paste an amazon product link here and I’ll message you when the price drops.")
     }
 
     bot.sendMessage(userId, {
@@ -674,6 +679,6 @@ function updateProductUserThreshold(userId, message) {
       return winston.error(error);
     }
 
-    return textMessage.send(userId, "Great, I've updated the alert price of that product for you");
+    return textMessage.send(userId, "Great, I've updated the alert price of that product for you.");
   }
 }
