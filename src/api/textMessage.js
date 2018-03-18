@@ -2,10 +2,10 @@ const bot = require('./../services/facebook/messengerbot');
 const winston = require('winston');
 
 const genericErrorMessage = "Sorry I didn't quite understand that! I only speak in Amazon Links. " +
-  "Can you try pasting that Amazon link again?";
+  "Can you paste that Amazon link again?";
 const unsupportedCountryErrorMessage = "I’m sorry, but I currently only work with Amazon's Canada and U.S. stores. I’ve noted that you’re interested and " +
   "I’ll be sure to notify you when I've learnt how to work with stores in that area!";
-const productNotFoundErrorMessage = "I’m sorry, I couldn’t find that product, are you sure your link is correct?";
+const productNotFoundErrorMessage = "I’m sorry, I couldn’t find that product. Can you try pasting the link again?";
 const kindleEbookNotSupportedErrorMessage = "Sorry, but at this time, Amazon doesn't let me track Kindle books. Try pasting a different product link!";
 const introMessage = "Hey! I’m Luko, a price tracking bot for Amazon products. " +
   "Have a product you’re interested in but the price isn't in your sweet spot? " +
