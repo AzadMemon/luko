@@ -123,14 +123,14 @@ function trackProduct(userId, message) {
       .then(
         function (amazonResult) {
           if (!!_.get(amazonResult, 'result.ItemLookupResponse.Items.Request.Errors.Error')) {
-            winston.error("Error getting product info from amazon: \n" + _.get(amazonResult, 'result.ItemLookupResponse.Items.Request.Errors.Error'));
+            winston.error("Error getting product info from amazon.", {error: _.get(amazonResult, 'result.ItemLookupResponse.Items.Request.Errors.Error')});
             return waterfallNext(textMessage.productNotFoundErrorMessage);
           }
 
           return waterfallNext(null, amazonResult);
         },
         function(error) {
-          winston.error("Unable to get product info from amazon: \n" + error);
+          winston.error("Unable to get product info from amazon.", {error: error});
           return waterfallNext(textMessage.productNotFoundErrorMessage);
         }
       );
@@ -138,7 +138,7 @@ function trackProduct(userId, message) {
 
   function validateProduct(amazonResult, waterfallNext) {
     if (amazon.isUnSupportedProduct(amazonResult)) {
-      winston.error("Unsupported product: " + url);
+      winston.error("Unsupported product.", {url: url});
       return waterfallNext(textMessage.unSupportedProductErrorMessage);
     }
 
@@ -195,7 +195,7 @@ function trackProduct(userId, message) {
       {upsert: true, new: true},
       function(error, result) {
         if (error) {
-          winston.error("Error while trying to upsert product during tracking.");
+          winston.error("Error while trying to upsert product during tracking.", {fbUserId: userId, store: store, asin: asin});
           return waterfallNext(textMessage.randomError);
         }
 
@@ -209,10 +209,10 @@ function trackProduct(userId, message) {
       {fbUserId: userId},
       function (error, user) {
         if (error) {
-          winston.error("Error while trying to find user.");
+          winston.error("Error while trying to find user.", {fbUserId: userId});
           return waterfallNext(textMessage.randomError);
         } else if (!user) {
-          winston.error("Couldn't find user in database");
+          winston.error("Couldn't find user in database", {fbUserId: userId});
           return waterfallNext(textMessage.randomError);
         }
 
@@ -242,7 +242,7 @@ function trackProduct(userId, message) {
       {upsert: true, new: true},
       function(error, result) {
         if (error) {
-          winston.error("Error while trying to add tracking relationship.");
+          winston.error("Error while trying to add tracking relationship.", {productId: product._id, userId: user._id});
           return waterfallNext(textMessage.randomError);
         }
 

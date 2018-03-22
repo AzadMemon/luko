@@ -17,7 +17,7 @@ function periodicUpdate(req, res) {
   winston.info(WINSTON_CRON + "Started cron job");
 
   if (req.body.key !== process.env.CRON_SECRET_KEY) {
-    winson.error(WINSTON_CRON + "Key doesn't match");
+    winston.error(WINSTON_CRON + "Key doesn't match");
     return res.send("Done with error");
   }
 
