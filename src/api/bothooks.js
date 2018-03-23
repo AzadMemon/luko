@@ -226,6 +226,8 @@ function trackProduct(userId, message) {
   }
 
   function addTrackingRelationship(user, product, waterfallNext) {
+    let thresholdAmount = product.currentPrice.amount - 1;
+    let thresholdFormattedAmount = "$" + thresholdAmount/100.0;
     ProductUser.findOneAndUpdate(
       {
         productId: product._id,
@@ -235,8 +237,8 @@ function trackProduct(userId, message) {
         productId: product._id,
         userId: user._id,
         thresholdPrice: [{
-          amount: product.currentPrice.amount,
-          formattedAmount: product.currentPrice.formattedAmount,
+          amount: thresholdAmount,
+          formattedAmount: thresholdFormattedAmount,
           currencyCode: product.currentPrice.currencyCode
         }],
         isTracking: true,
@@ -250,12 +252,12 @@ function trackProduct(userId, message) {
           return waterfallNext(textMessage.randomError);
         }
 
-        waterfallNext(null, product.currentPrice.formattedAmount);
+        waterfallNext();
       }
     )
   }
 
-  function finalCallback(errorText, alertPrice) {
+  function finalCallback(errorText) {
     if (errorText) {
       return textMessage.send(userId, errorText);
     }
@@ -265,8 +267,8 @@ function trackProduct(userId, message) {
         type: "template",
         payload: {
           template_type: "button",
-          text: "Okay I'll let you know when the price drops below your Alert Price: " + alertPrice + ". " +
-          "Click manage products to view the products you're tracking and adjust the Alert Price.",
+          text: "Okay I'll let you know when the price drops. You can also choose the alert price by clicking manage products " +
+          "or the \u2630 menu icon beside your text-bar.",
           buttons: [
             {
               type: "postback",

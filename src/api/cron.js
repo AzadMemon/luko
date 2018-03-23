@@ -222,7 +222,7 @@ function notifyUser(productUser) {
   }
 
   function sendAlert(product, user, waterfallNext) {
-    if (productUser.thresholdPrice[productUser.thresholdPrice.length - 1].amount <= product.currentPrice.amount) {
+    if (productUser.thresholdPrice[productUser.thresholdPrice.length - 1].amount < product.currentPrice.amount) {
       return waterfallNext();
     }
 
