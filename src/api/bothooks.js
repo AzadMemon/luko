@@ -28,7 +28,7 @@ bot.on('message', function (payload, reply, actions) {
   } else if (message.toLowerCase() === 'get started') {
     textMessage.send(senderId, textMessage.introMessage);
   } else if (message.toLowerCase() === 'help') {
-    textMessage.send(senderId, textMessage.introMessage);
+    textMessage.send(senderId, textMessage.helpMessage);
   } else {
     return textMessage.send(senderId, textMessage.genericErrorMessage);
   }
@@ -50,14 +50,14 @@ bot.on('postback', function (payload, reply, actions) {
     tagProductUserForPriceUpdate(senderId, asin, url)
   } else if (metadataPayload === 'PRODUCT_MANAGE_PAYLOAD') {
     displayTrackedProducts(senderId, 0);
-  } else if (metadataPayload.search(/PRODUCT_MANAGE_PAYLOAD:::\d+/g) !== -1){
+  } else if (metadataPayload.search(/PRODUCT_MANAGE_PAYLOAD:::\d+/g) !== -1) {
     let offset = parseInt(metadataPayload.substring(25, metadataPayload.length));
     displayTrackedProducts(senderId, offset);
   } else if (metadataPayload.toLowerCase() === 'get started') {
     createUser(senderId);
     textMessage.send(senderId, textMessage.introMessage);
   } else if (metadataPayload.toLowerCase() === 'help') {
-    textMessage.send(senderId, textMessage.introMessage);
+    textMessage.send(senderId, textMessage.helpMessage);
   } else if (metadataPayload.toLowerCase() === 'addproduct') {
     textMessage.send(senderId, textMessage.addAProduct);
   }
@@ -129,7 +129,7 @@ function trackProduct(userId, message) {
 
           return waterfallNext(null, amazonResult);
         },
-        function(error) {
+        function (error) {
           winston.error("Unable to get product info from amazon.", {error: error});
           return waterfallNext(textMessage.productNotFoundErrorMessage);
         }
@@ -193,9 +193,13 @@ function trackProduct(userId, message) {
         modifiedAt: Date.now()
       },
       {upsert: true, new: true},
-      function(error, result) {
+      function (error, result) {
         if (error) {
-          winston.error("Error while trying to upsert product during tracking.", {fbUserId: userId, store: store, asin: asin});
+          winston.error("Error while trying to upsert product during tracking.", {
+            fbUserId: userId,
+            store: store,
+            asin: asin
+          });
           return waterfallNext(textMessage.randomError);
         }
 
@@ -240,18 +244,18 @@ function trackProduct(userId, message) {
         modifiedAt: Date.now()
       },
       {upsert: true, new: true},
-      function(error, result) {
+      function (error, result) {
         if (error) {
           winston.error("Error while trying to add tracking relationship.", {productId: product._id, userId: user._id});
           return waterfallNext(textMessage.randomError);
         }
 
-        waterfallNext();
+        waterfallNext(null, product.currentPrice.formattedAmount);
       }
     )
   }
 
-  function finalCallback(errorText) {
+  function finalCallback(errorText, alertPrice) {
     if (errorText) {
       return textMessage.send(userId, errorText);
     }
@@ -261,7 +265,8 @@ function trackProduct(userId, message) {
         type: "template",
         payload: {
           template_type: "button",
-          text: "Okay I'll let you know when the price drops. Click manage products to view or adjust your alerts.",
+          text: "Okay I'll let you know when the price drops below your Alert Price: " + alertPrice + ". " +
+          "Click manage products to view the products you're tracking and adjust the Alert Price.",
           buttons: [
             {
               type: "postback",
@@ -332,7 +337,7 @@ function displayTrackedProducts(userId, skip) {
     User
       .findOne(
         {fbUserId: userId},
-        function(error, user) {
+        function (error, user) {
           if (error) {
             return waterfallNext(error);
           }
@@ -345,7 +350,7 @@ function displayTrackedProducts(userId, skip) {
     ProductUser
       .find(
         {userId: user._id, isTracking: true},
-        function(error, productUsers) {
+        function (error, productUsers) {
           if (error) {
             return waterfallNext(error);
           }
@@ -360,7 +365,7 @@ function displayTrackedProducts(userId, skip) {
     Product
       .find(
         {_id: {$in: productIds}},
-        function(error, products) {
+        function (error, products) {
           if (error) {
             return waterfallNext(error);
           }
@@ -372,7 +377,7 @@ function displayTrackedProducts(userId, skip) {
 
   function formatResponse(products, productUsers, waterfallNext) {
     let firstXProducts = _.slice(products, skip, skip + 9);
-    let carouselElements = _.map(firstXProducts, function(product, index) {
+    let carouselElements = _.map(firstXProducts, function (product, index) {
       let pU = productUsers[index + skip];
       return {
         title: product.title,
@@ -458,7 +463,7 @@ function stopTracking(userId, asin, url) {
           store: store,
           asin: asin
         },
-        function(error, product) {
+        function (error, product) {
           if (error) {
             return waterfallNext(error);
           }
@@ -491,7 +496,7 @@ function stopTracking(userId, asin, url) {
           isTracking: false,
           modifiedAt: Date.now()
         },
-        function(error, result) {
+        function (error, result) {
           if (error) {
             return watefallNext(error);
           }
@@ -524,7 +529,7 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
     User
       .findOne(
         {fbUserId: userId},
-        function(error, user) {
+        function (error, user) {
           if (error) {
             return waterfallNext(error);
           }
@@ -536,9 +541,9 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
   function setAllFlaggedProductUsersToFalse(user, waterfallNext) {
     ProductUser
       .update(
-        { userId: user._id, isBeingUpdated: true },
-        { isBeingUpdated: false, modifiedAt: Date.now() },
-        { multi: true },
+        {userId: user._id, isBeingUpdated: true},
+        {isBeingUpdated: false, modifiedAt: Date.now()},
+        {multi: true},
         function (error, raw) {
           if (error) {
             return waterfallNext(error);
@@ -626,14 +631,12 @@ function updateProductUserThreshold(userId, message) {
           userId: user._id,
           isTracking: true
         },
-        {
-
-        },
+        {},
         {
           sort: {modifiedAt: -1},
           limit: 1
         },
-        function(error, result) {
+        function (error, result) {
           if (error) {
             return waterfallNext(error);
           }
@@ -658,14 +661,14 @@ function updateProductUserThreshold(userId, message) {
           isBeingUpdated: false,
           $push: {
             thresholdPrice: {
-              amount: parseFloat(message)*100,
+              amount: parseFloat(message) * 100,
               formattedAmount: "$ " + String(parseFloat(message).toFixed(2)),
               currencyCode: productUser.thresholdPrice[0].currencyCode
             }
           },
           modifiedAt: Date.now()
         },
-        function(error) {
+        function (error) {
           if (error) {
             return waterfallNext(error);
           }
