@@ -664,7 +664,7 @@ function updateProductUserThreshold(userId, message) {
           $push: {
             thresholdPrice: {
               amount: parseFloat(message) * 100,
-              formattedAmount: "$ " + String(parseFloat(message).toFixed(2)),
+              formattedAmount: "$" + String(parseFloat(message).toFixed(2)),
               currencyCode: productUser.thresholdPrice[0].currencyCode
             }
           },
