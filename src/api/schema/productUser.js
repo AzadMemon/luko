@@ -11,6 +11,11 @@ let productUserSchema = new Schema({
     formattedAmount: String,
     currencyCode: String
   }],
+  initialPrice: {
+    amount: Number,
+    formattedAmount: String,
+    currencyCode: String
+  },
   isTracking: {type: Boolean, default: true},
   lastNotified: Date,
   isBeingUpdated: {type: Boolean, default: false}

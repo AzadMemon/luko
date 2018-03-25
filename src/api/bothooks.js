@@ -241,6 +241,11 @@ function trackProduct(userId, message) {
           formattedAmount: thresholdFormattedAmount,
           currencyCode: product.currentPrice.currencyCode
         }],
+        initialPrice: {
+          amount: product.currentPrice.amount ,
+          formattedAmount: product.currentPrice.formattedAmount,
+          currencyCode: product.currentPrice.currencyCode
+        },
         isTracking: true,
         lastNotified: Date.now(),
         modifiedAt: Date.now()
@@ -385,7 +390,8 @@ function displayTrackedProducts(userId, skip) {
         title: product.title,
         subtitle: product.publisher
         + "\nCurrent Price: " + product.currentPrice.formattedAmount
-        + "\nAlert Price: " + pU.thresholdPrice[pU.thresholdPrice.length - 1].formattedAmount,
+        + "\nAlert Price: " + pU.thresholdPrice[pU.thresholdPrice.length - 1].formattedAmount
+        + "\nInitial Price: " + pU.initialPrice.formattedAmount,
         item_url: product.link,
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
