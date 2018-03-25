@@ -125,7 +125,7 @@ function updatedProductPrice(product, batchId) {
           modifiedAt: Date.now(),
           currentPrice: {
             amount: amount,
-            formattedAmount: formattedAmount,
+            formattedAmount: "$" + (amount/100.0).toFixed(2),
             currencyCode: currencyCode,
             date: Date.now()
           },
@@ -238,7 +238,7 @@ function notifyUser(productUser) {
               subtitle: product.publisher +
               "\nCurrent Price: " + product.currentPrice.formattedAmount +
               "\nInitial Price: " + productUser.initialPrice.formattedAmount +
-              "\n\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
+              "\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
               item_url: product.link,
               image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
               buttons: [

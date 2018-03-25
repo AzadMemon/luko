@@ -171,14 +171,14 @@ function trackProduct(userId, message) {
         asin: asin,
         currentPrice: {
           amount: amount,
-          formattedAmount: formattedAmount,
+          formattedAmount: "$" + (amount/100.0).toFixed(2),
           currencyCode: currencyCode
         },
         $push: {
           priceHistory: {
             date: Date.now(),
             amount: amount,
-            formattedAmount: formattedAmount,
+            formattedAmount: "$" + (amount/100.0).toFixed(2),
             currencyCode: currencyCode
           }
         },
@@ -227,7 +227,8 @@ function trackProduct(userId, message) {
 
   function addTrackingRelationship(user, product, waterfallNext) {
     let thresholdAmount = product.currentPrice.amount - 1;
-    let thresholdFormattedAmount = "$" + thresholdAmount/100.0;
+    let thresholdFormattedAmount = "$" + (thresholdAmount/100.0).toFixed(2);
+
     ProductUser.findOneAndUpdate(
       {
         productId: product._id,
@@ -386,12 +387,21 @@ function displayTrackedProducts(userId, skip) {
     let firstXProducts = _.slice(products, skip, skip + 9);
     let carouselElements = _.map(firstXProducts, function (product, index) {
       let pU = productUsers[index + skip];
+
+      let currentAlertPrice = pU.thresholdPrice[pU.thresholdPrice.length - 1];
+      let formattedAlertPrice = "";
+      if (currentAlertPrice.amount === pU.initialPrice.amount - 1) {
+        // If the current alertPrice is the same as initial price minus one cent, that means it's the default alert price
+        formattedAlertPrice = "Less than " + pU.initialPrice.formattedAmount;
+      } else {
+        formattedAlertPrice = currentAlertPrice.formattedAmount;
+      }
+
       return {
         title: product.title,
         subtitle: product.publisher
-        + "\nCurrent Price: " + product.currentPrice.formattedAmount
-        + "\nInitial Price: " + pU.initialPrice.formattedAmount
-        + "\n\nAlert Price: " + pU.thresholdPrice[pU.thresholdPrice.length - 1].formattedAmount,
+        + "\n\r\nCurrent Price: " + product.currentPrice.formattedAmount
+        + "\nAlert Price: " + formattedAlertPrice,
         item_url: product.link,
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
