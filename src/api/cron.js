@@ -237,8 +237,8 @@ function notifyUser(productUser) {
               title: "PRICE DROP ALERT - " + product.title,
               subtitle: product.publisher +
               "\nCurrent Price: " + product.currentPrice.formattedAmount +
-              "\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount +
-              "\nInitial Price: " + productUser.initialPrice.formattedAmount,
+              "\nInitial Price: " + productUser.initialPrice.formattedAmount +
+              "\n\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
               item_url: product.link,
               image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
               buttons: [

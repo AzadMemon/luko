@@ -390,8 +390,8 @@ function displayTrackedProducts(userId, skip) {
         title: product.title,
         subtitle: product.publisher
         + "\nCurrent Price: " + product.currentPrice.formattedAmount
-        + "\nAlert Price: " + pU.thresholdPrice[pU.thresholdPrice.length - 1].formattedAmount
-        + "\nInitial Price: " + pU.initialPrice.formattedAmount,
+        + "\nInitial Price: " + pU.initialPrice.formattedAmount
+        + "\n\nAlert Price: " + pU.thresholdPrice[pU.thresholdPrice.length - 1].formattedAmount,
         item_url: product.link,
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
