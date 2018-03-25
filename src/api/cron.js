@@ -226,6 +226,16 @@ function notifyUser(productUser) {
       return waterfallNext();
     }
 
+
+    let currentDesiredPrice = productUser.thresholdPrice[productUser.thresholdPrice.length - 1];
+    let formattedDesiredPrice = "";
+    if (currentDesiredPrice.amount === productUser.initialPrice.amount - 1) {
+      // If the current desiredPrice is the same as initial price minus one cent, that means it's the default desired price
+      formattedDesiredPrice = "Less than " + productUser.initialPrice.formattedAmount;
+    } else {
+      formattedDesiredPrice = currentDesiredPrice.formattedAmount;
+    }
+
     bot.sendMessage(
       user.fbUserId,
       {
@@ -238,7 +248,7 @@ function notifyUser(productUser) {
               subtitle: product.publisher +
               "\nCurrent Price: " + product.currentPrice.formattedAmount +
               "\nInitial Price: " + productUser.initialPrice.formattedAmount +
-              "\nDesired Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
+              "\nDesired Price: " + formattedDesiredPrice,
               item_url: product.link,
               image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
               buttons: [
