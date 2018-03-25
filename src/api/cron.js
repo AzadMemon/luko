@@ -238,7 +238,7 @@ function notifyUser(productUser) {
               subtitle: product.publisher +
               "\nCurrent Price: " + product.currentPrice.formattedAmount +
               "\nInitial Price: " + productUser.initialPrice.formattedAmount +
-              "\nAlert Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
+              "\nDesired Price: " + productUser.thresholdPrice[productUser.thresholdPrice.length - 1].formattedAmount,
               item_url: product.link,
               image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
               buttons: [
@@ -249,7 +249,7 @@ function notifyUser(productUser) {
                 },
                 {
                   type: "postback",
-                  title: "Update Alert Price",
+                  title: "Update Desired Price",
                   payload: "UpdatePrice:::" + product.asin + ":::" + product.link
                 },
                 {

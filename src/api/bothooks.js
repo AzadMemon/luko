@@ -273,7 +273,7 @@ function trackProduct(userId, message) {
         type: "template",
         payload: {
           template_type: "button",
-          text: "Okay I'll let you know when the price drops. You can also choose the alert price by clicking manage products " +
+          text: "Okay I'll let you know when the price drops. You can also choose the desired price by clicking manage products " +
           "or the \u2630 menu icon beside your text-bar.",
           buttons: [
             {
@@ -388,20 +388,20 @@ function displayTrackedProducts(userId, skip) {
     let carouselElements = _.map(firstXProducts, function (product, index) {
       let pU = productUsers[index + skip];
 
-      let currentAlertPrice = pU.thresholdPrice[pU.thresholdPrice.length - 1];
-      let formattedAlertPrice = "";
-      if (currentAlertPrice.amount === pU.initialPrice.amount - 1) {
-        // If the current alertPrice is the same as initial price minus one cent, that means it's the default alert price
-        formattedAlertPrice = "Less than " + pU.initialPrice.formattedAmount;
+      let currentDesiredPrice = pU.thresholdPrice[pU.thresholdPrice.length - 1];
+      let formattedDesiredPrice = "";
+      if (currentDesiredPrice.amount === pU.initialPrice.amount - 1) {
+        // If the current desiredPrice is the same as initial price minus one cent, that means it's the default desired price
+        formattedDesiredPrice = "Less than " + pU.initialPrice.formattedAmount;
       } else {
-        formattedAlertPrice = currentAlertPrice.formattedAmount;
+        formattedDesiredPrice = currentDesiredPrice.formattedAmount;
       }
 
       return {
         title: product.title,
         subtitle: product.publisher
         + "\n\r\nCurrent Price: " + product.currentPrice.formattedAmount
-        + "\nAlert Price: " + formattedAlertPrice,
+        + "\nDesired Price: " + formattedDesiredPrice,
         item_url: product.link,
         image_url: product.imageUrl.large || product.imageUrl.medium || product.imageUrl.small,
         buttons: [
@@ -412,7 +412,7 @@ function displayTrackedProducts(userId, skip) {
           },
           {
             type: "postback",
-            title: "Update Alert Price",
+            title: "Update Desired Price",
             payload: "UpdatePrice:::" + product.asin + ":::" + product.link
           },
           {
@@ -605,8 +605,8 @@ function tagProductUserForPriceUpdate(userId, asin, url) {
           }
 
           if (!result) {
-            textMessage.send(userId, "It seems like you might be trying to update the Alert Price. To update the alert price, click on Update Alert Price of any product you're tracking.");
-            return waterfallNext("Tried to update alert price when isTracking is set to false");
+            textMessage.send(userId, "It seems like you might be trying to update the desired price of a product. To update the desired price, click on the Update Desired Price button of any product you're tracking.");
+            return waterfallNext("Tried to update desired price when isTracking is set to false");
           }
 
           return waterfallNext(null);
@@ -660,8 +660,8 @@ function updateProductUserThreshold(userId, message) {
           }
 
           if (result.length < 1 || !result[0].isBeingUpdated) {
-            textMessage.send(userId, "It seems like you might be trying to update the Alert Price. To update the alert price, click on Update Alert Price of any product you're tracking.");
-            return waterfallNext("Tried to update alert price when most recently modified ProductUser was not in 'isBeingUpdated' state or was not being tracked.");
+            textMessage.send(userId, "It seems like you might be trying to update the desired price of a product. To update the desired price, click on the Update Desired Price of any product you're tracking.");
+            return waterfallNext("Tried to update desired price when most recently modified ProductUser was not in 'isBeingUpdated' state or was not being tracked.");
           }
 
           return waterfallNext(null, user, result[0]);
@@ -700,6 +700,6 @@ function updateProductUserThreshold(userId, message) {
       return winston.error(error);
     }
 
-    return textMessage.send(userId, "Great, I've updated the alert price of that product for you.");
+    return textMessage.send(userId, "Great, I've updated the desired price of that product for you.");
   }
 }
