@@ -273,8 +273,7 @@ function trackProduct(userId, message) {
         type: "template",
         payload: {
           template_type: "button",
-          text: "Okay I'll let you know when the price drops. You can also choose the desired price by clicking manage products " +
-          "or the \u2630 menu icon beside your text-bar.",
+          text: textMessage.successfulUpdateDesiredPrice,
           buttons: [
             {
               type: "postback",
@@ -450,7 +449,7 @@ function displayTrackedProducts(userId, skip) {
     }
 
     if (carouselElements.length === 0) {
-      return textMessage.send(userId, "You're currently not tracking any products! To track a product, simply paste an amazon product link here and I’ll message you when the price drops.")
+      return textMessage.send(userId, "You're currently not tracking any products! To track a product, paste an amazon product link here and I’ll message you when the price drops.")
     }
 
     bot.sendMessage(userId, {
@@ -700,6 +699,7 @@ function updateProductUserThreshold(userId, message) {
       return winston.error(error);
     }
 
-    return textMessage.send(userId, "Great, I've updated the desired price of that product for you.");
+    let newDesiredPrice = "$" + String(parseFloat(message).toFixed(2));
+    return textMessage.send(userId, "Great, I'll let you know when the price drops to " + newDesiredPrice + ".");
   }
 }

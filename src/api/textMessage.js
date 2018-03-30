@@ -8,12 +8,14 @@ const unsupportedCountryErrorMessage = "I’m sorry, but I currently only work w
 const productNotFoundErrorMessage = "I’m sorry, I couldn’t find that product. Can you paste the link again?";
 const kindleEbookNotSupportedErrorMessage = "Sorry, but at this time, Amazon doesn't let me track Kindle books. Try pasting a different product link!";
 const introMessage = "Hey, I'm Luko! I can track the price of your Amazon products and notify you " +
-  "when the price drops. Paste your Amazon product link(s) here and I'll do the rest. You can always type 'help' for more info.";
+  "when the price drops. Paste your Amazon product link(s) here to get started. You can always type 'help' for more info.";
 const unSupportedProductErrorMessage = "Sorry, but at this time, Amazon doesn't let me track that product. Try passing a different product link!";
 const addAProduct = "To add a product, paste your Amazon product link(s) here.";
 const randomError = "Ooops, something went wrong with my magical amazon communication skills. Try again in a bit!";
 const helpMessage = "To add a product, paste your Amazon product link(s) here. You can always " +
-  "access the menu for more options by clicking the \u2630 icon beside the text-bar.";
+  "access the menu for more options by clicking the \u2630 icon beside the message bar.";
+const successfulUpdateDesiredPrice = "Okay I'll let you know when the price drops. You can also choose the desired price by clicking manage products " +
+  "or the \u2630 menu icon beside the message bar.";
 
 function send(recipientId, text) {
   bot.sendMessage(recipientId, { text: text }, "RESPONSE", null, function(error, resp) {
@@ -33,5 +35,6 @@ module.exports = {
   addAProduct: addAProduct,
   randomError: randomError,
   helpMessage: helpMessage,
+  successfulUpdateDesiredPrice: successfulUpdateDesiredPrice,
   send: send
 };
