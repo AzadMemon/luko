@@ -23,7 +23,7 @@ export default (routes) => {
   app.use(queryErrorHandler())
   app.use(bodyErrorHandler())
 
-  // app.use(express.static('./public', {dotfiles: "allow"}));
+  app.use(express.static('./public', {dotfiles: "allow"}));
 
   return app
 }
