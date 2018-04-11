@@ -148,6 +148,7 @@ function trackProduct(userId, message) {
   function upsertProduct(amazonResult, waterfallNext) {
     let store = amazon.getStore(url);
     let offersUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.Offers.MoreOffersUrl');
+    let detailPageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.DetailPageURL');
     let currencyCode = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.CurrencyCode');
     let amount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.Amount');
     let formattedAmount = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.OfferSummary.LowestNewPrice.FormattedPrice');
@@ -156,6 +157,7 @@ function trackProduct(userId, message) {
     let smallImageUrl = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.SmallImage.URL');
     let publisher = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Publisher');
     let title = _.get(amazonResult, 'result.ItemLookupResponse.Items.Item.ItemAttributes.Title');
+
     // Items.Item.Offers.Offer.OfferListing.Price.Amount/CurrencyCode/FormattedPrice
     if (!formattedAmount || formattedAmount.toLowerCase() === "too low to display") {
       return waterfallNext(textMessage.unSupportedProductErrorMessage);
@@ -167,7 +169,7 @@ function trackProduct(userId, message) {
         asin: asin
       },
       {
-        link: offersUrl,
+        link: _.isNil(offersUrl) && offersUrl !== "0" ? offersUrl : detailPageUrl,
         asin: asin,
         currentPrice: {
           amount: amount,
