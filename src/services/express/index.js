@@ -17,13 +17,13 @@ export default (routes) => {
     app.use(morgan('dev'))
   }
 
+  app.use(express.static('./public', {dotfiles: "allow"}));
+
   app.use(bodyParser.urlencoded({ extended: false }))
   app.use(bodyParser.json())
   app.use(routes)
   app.use(queryErrorHandler())
   app.use(bodyErrorHandler())
-
-  app.use(express.static('./public', {dotfiles: "allow"}));
 
   return app
 }
